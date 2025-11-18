@@ -215,3 +215,6 @@ eval "$(uvx --generate-shell-completion zsh)"
 
 # Source Powerlevel10k configuration
 [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+
+# bun completions
+[ -s "/Users/brett/.oh-my-zsh/completions/_bun" ] && source "/Users/brett/.oh-my-zsh/completions/_bun"
