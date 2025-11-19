@@ -11,11 +11,11 @@ NC='\033[0m' # No Color
 # Detect OS
 detect_os() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "macos"
+        echo -n "macos"
     elif [[ "$OSTYPE" == "linux-gnu"* ]] || [[ "$OSTYPE" == "linux-musl"* ]]; then
-        echo "linux"
+        echo -n "linux"
     else
-        echo "unknown"
+        echo -n "unknown"
     fi
 }
 
@@ -24,12 +24,12 @@ get_dotfiles_dir() {
     # This assumes scripts are in dotfiles/scripts/
     # So we go up one level from scripts/ to get dotfiles/
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    echo "$(cd "$script_dir/.." && pwd)"
+    echo -n "$(cd "$script_dir/.." && pwd)"
 }
 
 # Initialize common variables
 DOTFILES_DIR="$(get_dotfiles_dir)"
 STOW_DIR="$DOTFILES_DIR/stow"
 SCRIPTS_DIR="$DOTFILES_DIR/scripts"
-OS=$(detect_os)
+OS="$(detect_os)"
 
