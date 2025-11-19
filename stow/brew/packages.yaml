@@ -128,11 +128,8 @@ casks:
 
 vscode_extensions:
   - anthropic.claude-code
-  - anysphere.cursorpyright
-  - anysphere.remote-containers
-  - anysphere.remote-ssh
   - bierner.markdown-mermaid
-  - databricks.neon-local-connect
+  # Note: databricks.neon-local-connect has no release version available - removed
   - dbaeumer.vscode-eslint
   - editorconfig.editorconfig
   - esbenp.prettier-vscode

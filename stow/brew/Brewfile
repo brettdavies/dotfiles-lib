@@ -44,11 +44,7 @@ cask "docker-desktop"
 
 # VS Code extensions (essential)
 vscode "anthropic.claude-code"
-vscode "anysphere.cursorpyright"
-vscode "anysphere.remote-containers"
-vscode "anysphere.remote-ssh"
 vscode "bierner.markdown-mermaid"
-vscode "databricks.neon-local-connect"
 vscode "dbaeumer.vscode-eslint"
 vscode "editorconfig.editorconfig"
 vscode "esbenp.prettier-vscode"

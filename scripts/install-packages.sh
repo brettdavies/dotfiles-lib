@@ -105,6 +105,32 @@ install_macos_packages() {
             echo "    Linked theme: $theme"
         fi
     done
+    
+    # Install Cursor extensions (if Cursor is installed and extensions.txt exists)
+    if command -v cursor &> /dev/null || [ -f "/Applications/Cursor.app/Contents/Resources/app/bin/cursor" ]; then
+        CURSOR_CMD=""
+        if command -v cursor &> /dev/null; then
+            CURSOR_CMD="cursor"
+        elif [ -f "/Applications/Cursor.app/Contents/Resources/app/bin/cursor" ]; then
+            CURSOR_CMD="/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
+        fi
+        
+        CURSOR_EXTENSIONS_FILE="$STOW_DIR/cursor/extensions.txt"
+        if [ -n "$CURSOR_CMD" ] && [ -f "$CURSOR_EXTENSIONS_FILE" ]; then
+            echo "  - Installing Cursor extensions"
+            while IFS= read -r extension || [ -n "$extension" ]; do
+                # Skip empty lines and comments
+                if [[ -n "$extension" && ! "$extension" =~ ^[[:space:]]*# ]]; then
+                    # Remove leading/trailing whitespace
+                    extension=$(echo "$extension" | xargs)
+                    if [[ -n "$extension" ]]; then
+                        echo "    Installing: $extension"
+                        "$CURSOR_CMD" --install-extension "$extension" 2>/dev/null || true
+                    fi
+                fi
+            done < "$CURSOR_EXTENSIONS_FILE"
+        fi
+    fi
 }
 
 # Install packages on Linux
