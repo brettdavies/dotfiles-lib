@@ -10,9 +10,11 @@ source "$(dirname "$0")/lib.sh"
 echo "  - Creating .secrets file"
 if [ ! -f ~/.secrets ]; then
     touch ~/.secrets
-    chmod 600 ~/.secrets
     echo -e "${GREEN}    Created empty .secrets file with 600 permissions${NC}"
+    echo -e "${RED}    Note: .secrets file should be managed separately on each machine.${NC}"
 else
     echo -e "${YELLOW}    .secrets file already exists, skipping${NC}"
 fi
 
+# Always enforce correct permissions (even if file pre-existed)
+chmod 600 ~/.secrets

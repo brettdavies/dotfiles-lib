@@ -11,12 +11,22 @@ fi
 # Add Homebrew to PATH (macOS)
 # This must be done early so brew command is available for other scripts
 if [[ "$OSTYPE" == "darwin"* ]]; then
+    export HOMEBREW_NO_ENV_HINTS=1
     # Check for Homebrew in standard locations
     if [ -d "/opt/homebrew/bin" ]; then
         export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+        # Add Homebrew Python unversioned symlinks (python3, pip3, etc.) to PATH
+        # This ensures Homebrew's Python is used instead of system/framework Python
+        if [ -d "/opt/homebrew/opt/python@3.12/libexec/bin" ]; then
+            export PATH="/opt/homebrew/opt/python@3.12/libexec/bin:$PATH"
+        fi
     elif [ -d "/usr/local/bin" ]; then
         # Legacy Homebrew location (Intel Macs)
         export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+        # Add Homebrew Python unversioned symlinks (python3, pip3, etc.) to PATH
+        if [ -d "/usr/local/opt/python@3.12/libexec/bin" ]; then
+            export PATH="/usr/local/opt/python@3.12/libexec/bin:$PATH"
+        fi
     fi
 fi
 
@@ -60,6 +70,11 @@ export PIP_CACHE_DIR="$HOME/.cache/pip"
 # locally installed binaries to override system ones and providing a standard
 # location for user scripts and tools.
 . "$HOME/.local/bin/env"
+
+# Rust/Cargo environment
+if [ -f "$HOME/.cargo/env" ]; then
+    . "$HOME/.cargo/env"
+fi
 
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:$HOME/.lmstudio/bin"
