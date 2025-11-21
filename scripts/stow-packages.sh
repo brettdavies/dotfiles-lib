@@ -320,6 +320,9 @@ sync_local_changes() {
     local target="$2"
     local package_dir="$STOW_DIR/$package"
     
+    # Ensure diff3 is available if merge mode is enabled (check once)
+    ensure_diff3_available || return 1
+    
     if [ ! -d "$package_dir" ]; then
         return 0  # Package doesn't exist
     fi
