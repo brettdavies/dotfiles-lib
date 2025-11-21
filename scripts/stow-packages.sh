@@ -6,11 +6,17 @@
 
 set -euo pipefail
 
-# Source shared library
-source "$(dirname "$0")/lib.sh"
+# Source shared libraries
+source "$(dirname "$0")/lib-core.sh"
+source "$(dirname "$0")/lib-stow.sh"
+source "$(dirname "$0")/lib-sync.sh"
 
 # Parse arguments
 parse_common_args "$@"
+
+# Initialize sync counters
+SYNCED_FILES=0
+SYNCED_DIRECTORIES=0
 
 # Function to check for conflicts and count what would be done
 # Returns conflicts count via global variable CONFLICTS_FOUND
@@ -307,6 +313,162 @@ check_package_dry_run() {
     SYMLINKS_TO_CREATE=$((SYMLINKS_TO_CREATE + pkg_symlinks))
 }
 
+# Sync local changes back into repo for a package
+# Usage: sync_local_changes <package> <target>
+sync_local_changes() {
+    local package="$1"
+    local target="$2"
+    local package_dir="$STOW_DIR/$package"
+    
+    if [ ! -d "$package_dir" ]; then
+        return 0  # Package doesn't exist
+    fi
+    
+    # Find all files in the package directory
+    while IFS= read -r -d '' repo_file; do
+        local rel_path="${repo_file#$package_dir/}"
+        
+        # Skip .DS_Store files
+        if should_skip_file "$rel_path"; then
+            continue
+        fi
+        
+        # Build target path (where file should be in home directory)
+        local target_file
+        target_file=$(build_target_path "$repo_file" "$package_dir" "$target")
+        
+        # Validate target path is safe
+        if ! is_safe_target_path "$target_file"; then
+            continue
+        fi
+        
+        # Skip if target doesn't exist locally
+        if [ ! -e "$target_file" ]; then
+            continue
+        fi
+        
+        # Skip if already correctly symlinked
+        if is_already_symlinked "$repo_file" "$target_file"; then
+            continue
+        fi
+        
+        # Skip if accessible via parent directory symlink
+        if is_parent_dir_symlinked "$target_file" "$package"; then
+            continue
+        fi
+        
+        # Skip if target is a symlink pointing elsewhere (not a conflict we can sync)
+        if [ -L "$target_file" ]; then
+            continue
+        fi
+        
+        # Skip binary files
+        if is_binary_file "$target_file"; then
+            if [ "$VERBOSE" = true ]; then
+                echo -e "    ${YELLOW}⚠ Skipping binary file: ${target_file#$HOME/}${NC}"
+            fi
+            continue
+        fi
+        
+        # Check if files differ
+        if ! compare_files "$target_file" "$repo_file"; then
+            # Files differ, need to sync
+            if [ "$DRY_RUN" = true ]; then
+                echo -e "    ${YELLOW}Would sync: ${target_file#$HOME/}${NC}"
+                if [ "$VERBOSE" = true ]; then
+                    echo "    Diff:"
+                    show_file_diff "$repo_file" "$target_file" "repo/${target_file#$HOME/}" "local/${target_file#$HOME/}" | sed 's/^/      /'
+                fi
+                ((SYNCED_FILES++))
+            else
+                # Create backup of repo file
+                local backup_path
+                backup_path=$(create_file_backup "$repo_file")
+                
+                if [ "$SYNC_MERGE" = true ]; then
+                    # Merge mode
+                    local temp_file
+                    temp_file=$(mktemp)
+                    if merge_files "$target_file" "$repo_file" "$temp_file"; then
+                        # Merge successful
+                        cp "$temp_file" "$repo_file"
+                        echo -e "    ${GREEN}✓ Merged: ${target_file#$HOME/}${NC}"
+                        if [ "$VERBOSE" = true ]; then
+                            echo "    Diff:"
+                            show_file_diff "$backup_path" "$repo_file" "backup/${target_file#$HOME/}" "merged/${target_file#$HOME/}" | sed 's/^/      /'
+                        fi
+                    else
+                        # Merge had conflicts
+                        echo -e "    ${YELLOW}⚠ Merge conflicts in: ${target_file#$HOME/}${NC}"
+                        echo "    Backup saved to: $backup_path"
+                        if [ "$VERBOSE" = true ]; then
+                            echo "    Diff:"
+                            show_file_diff "$repo_file" "$target_file" "repo/${target_file#$HOME/}" "local/${target_file#$HOME/}" | sed 's/^/      /'
+                        fi
+                        # Copy merged file with conflicts to repo (user can resolve)
+                        cp "$temp_file" "$repo_file"
+                    fi
+                    rm -f "$temp_file"
+                else
+                    # Overwrite mode
+                    copy_to_repo "$target_file" "$repo_file"
+                    echo -e "    ${GREEN}✓ Synced: ${target_file#$HOME/}${NC}"
+                    if [ "$VERBOSE" = true ]; then
+                        echo "    Backup saved to: $backup_path"
+                        echo "    Diff:"
+                        show_file_diff "$backup_path" "$repo_file" "backup/${target_file#$HOME/}" "synced/${target_file#$HOME/}" | sed 's/^/      /'
+                    fi
+                fi
+                ((SYNCED_FILES++))
+            fi
+        fi
+    done < <(find -P "$package_dir" -type f -print0 2>/dev/null)
+    
+    # Handle directory sync: if files exist locally in directories that match package structure
+    # but don't exist in the repo, copy them to the stow directory
+    # Find directories in package
+    while IFS= read -r -d '' repo_dir; do
+        local dir_rel_path="${repo_dir#$package_dir/}"
+        local transformed_path
+        transformed_path=$(transform_dotfiles_path "$dir_rel_path")
+        local target_dir="$HOME/$transformed_path"
+        
+        # Check if target directory exists locally and is not a symlink
+        if [ -d "$target_dir" ] && [ ! -L "$target_dir" ]; then
+            # Check if any files in target_dir don't exist in repo_dir
+            while IFS= read -r -d '' local_file; do
+                local file_rel_path="${local_file#$target_dir/}"
+                # Transform to dot-* format for repo
+                local repo_file_transformed
+                repo_file_transformed=$(echo "$file_rel_path" | sed 's|\.|dot-|g')
+                local repo_file_path="$repo_dir/$repo_file_transformed"
+                
+                # Skip if file already exists in repo
+                if [ -f "$repo_file_path" ]; then
+                    continue
+                fi
+                
+                # Skip binary files
+                if is_binary_file "$local_file"; then
+                    if [ "$VERBOSE" = true ]; then
+                        echo -e "    ${YELLOW}⚠ Skipping binary file: ${local_file#$HOME/}${NC}"
+                    fi
+                    continue
+                fi
+                
+                if [ "$DRY_RUN" = true ]; then
+                    echo -e "    ${YELLOW}Would add: ${local_file#$HOME/} -> ${repo_file_path#$STOW_DIR/}${NC}"
+                else
+                    # Copy file to repo (with dot-* transformation)
+                    copy_to_repo "$local_file" "$repo_file_path"
+                    echo -e "    ${GREEN}✓ Added: ${local_file#$HOME/} -> ${repo_file_path#$STOW_DIR/}${NC}"
+                fi
+                ((SYNCED_FILES++))
+            done < <(find "$target_dir" -type f -print0 2>/dev/null)
+        fi
+    done < <(find -P "$package_dir" -type d -print0 2>/dev/null)
+}
+
 # Execute stow operation for a package
 # Usage: execute_stow <package>
 execute_stow() {
@@ -328,6 +490,19 @@ stow_package() {
         return 0  # Package doesn't exist
     fi
     
+    # Sync local changes before dry-run or actual stow
+    if [ "$SYNC_LOCAL" = true ]; then
+        if [ "$DRY_RUN" = true ]; then
+            if [ "$VERBOSE" = true ]; then
+                echo "  - $description (sync preview)"
+            fi
+            sync_local_changes "$package" "$HOME"
+        else
+            echo "  - $description (syncing local changes)"
+            sync_local_changes "$package" "$HOME"
+        fi
+    fi
+    
     if [ "$DRY_RUN" = true ]; then
         check_package_dry_run "$package" "$description"
         return 0
@@ -341,12 +516,34 @@ stow_package() {
 }
 
 # Main execution
+if [ "$SYNC_LOCAL" = true ]; then
+    # Warn if repo has uncommitted changes
+    if [ "$DRY_RUN" != true ] && command -v git &> /dev/null; then
+        cd "$DOTFILES_DIR" || true
+        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+            echo -e "${YELLOW}⚠ Warning: Repository has uncommitted changes${NC}"
+            echo "  Consider committing or stashing changes before syncing"
+            echo ""
+        fi
+    fi
+    
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${YELLOW}[DRY RUN] Previewing local changes to sync...${NC}"
+    else
+        echo -e "${GREEN}Syncing local changes into repository...${NC}"
+    fi
+    SYNCED_FILES=0
+    SYNCED_DIRECTORIES=0
+fi
+
 if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}[DRY RUN] Checking symlinks...${NC}"
     CONFLICTS_FOUND=0
     SYMLINKS_TO_CREATE=0
 else
-    echo -e "${GREEN}Creating symlinks...${NC}"
+    if [ "$SYNC_LOCAL" != true ]; then
+        echo -e "${GREEN}Creating symlinks...${NC}"
+    fi
 fi
 
 # Shell configs
@@ -548,9 +745,31 @@ if [[ "$OS" == "macos" ]]; then
     fi
 fi
 
-# Summary for dry-run
-if [ "$DRY_RUN" = true ]; then
+# Summary
+if [ "$SYNC_LOCAL" = true ]; then
     echo ""
+    if [ "$DRY_RUN" = true ]; then
+        if [ $SYNCED_FILES -gt 0 ]; then
+            echo -e "${YELLOW}[DRY RUN] Would sync $SYNCED_FILES file(s)${NC}"
+        else
+            echo -e "${GREEN}[DRY RUN] No files to sync${NC}"
+        fi
+    else
+        if [ $SYNCED_FILES -gt 0 ]; then
+            echo -e "${GREEN}✓ Synced $SYNCED_FILES file(s) into repository${NC}"
+            echo -e "${YELLOW}  Note: Review changes and commit them with git${NC}"
+        else
+            echo -e "${GREEN}✓ No files needed syncing${NC}"
+        fi
+    fi
+    echo ""
+fi
+
+# Summary for dry-run (symlinks)
+if [ "$DRY_RUN" = true ]; then
+    if [ "$SYNC_LOCAL" != true ]; then
+        echo ""
+    fi
     if [ $CONFLICTS_FOUND -gt 0 ]; then
         echo -e "${YELLOW}[DRY RUN] Would create $SYMLINKS_TO_CREATE symlinks, remove $CONFLICTS_FOUND conflicting files${NC}"
     else

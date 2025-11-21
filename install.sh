@@ -13,14 +13,16 @@ set -euo pipefail
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$DOTFILES_DIR/scripts"
 
-# Source shared library
-source "$SCRIPTS_DIR/lib.sh"
+# Source shared libraries
+source "$SCRIPTS_DIR/lib-core.sh"
 
 # Parse arguments
 DRY_RUN=false
 CHECK_ONLY=false
 VERBOSE=false
-ARGS=""
+SYNC_LOCAL=false
+SYNC_MERGE=false
+ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -34,6 +36,16 @@ while [[ $# -gt 0 ]]; do
             ARGS+=("--verbose")
             shift
             ;;
+        --sync-local)
+            SYNC_LOCAL=true
+            ARGS+=("--sync-local")
+            shift
+            ;;
+        --merge)
+            SYNC_MERGE=true
+            ARGS+=("--merge")
+            shift
+            ;;
         --check)
             CHECK_ONLY=true
             shift
@@ -45,16 +57,21 @@ Usage: $(basename "$0") [OPTIONS]
 Install dotfiles on this system.
 
 OPTIONS:
-    --dry-run    Show what would be done without making changes
-    --verbose, -v  Show detailed output
-    --check      Check current implementation status (no installation)
-    -h, --help   Show this help message
+    --dry-run       Show what would be done without making changes
+    --verbose, -v   Show detailed output
+    --sync-local    Sync local changes back into dotfiles repo before installation
+    --merge         When syncing, merge changes instead of overwriting (requires --sync-local)
+    --check         Check current implementation status (no installation)
+    -h, --help      Show this help message
 
 EXAMPLES:
-    $(basename "$0")                    # Run full installation
-    $(basename "$0") --dry-run          # Preview installation steps
-    $(basename "$0") --dry-run --verbose # Preview with detailed output
-    $(basename "$0") --check            # Check if dotfiles are already set up
+    $(basename "$0")                           # Run full installation
+    $(basename "$0") --dry-run                 # Preview installation steps
+    $(basename "$0") --dry-run --verbose       # Preview with detailed output
+    $(basename "$0") --sync-local              # Sync local changes, then install
+    $(basename "$0") --sync-local --merge      # Sync with merge mode
+    $(basename "$0") --sync-local --dry-run    # Preview what would be synced
+    $(basename "$0") --check                   # Check if dotfiles are already set up
 
 EOF
             exit 0
@@ -82,6 +99,13 @@ if [ "$DRY_RUN" = true ]; then
 fi
 if [ "$VERBOSE" = true ]; then
     echo -e "${GREEN}[VERBOSE] MODE: Detailed output enabled${NC}"
+fi
+if [ "$SYNC_LOCAL" = true ]; then
+    if [ "$SYNC_MERGE" = true ]; then
+        echo -e "${GREEN}[SYNC LOCAL] MODE: Merging local changes into repo${NC}"
+    else
+        echo -e "${GREEN}[SYNC LOCAL] MODE: Overwriting repo with local changes${NC}"
+    fi
 fi
 echo ""
 

@@ -23,8 +23,8 @@ set -u  # Exit on undefined variable
 
 # Don't use set -e, we want to continue checking even if some checks fail
 
-# Source lib.sh early for colors and common functions
-# Get dotfiles directory first (before sourcing lib.sh)
+# Source shared libraries early for colors and common functions
+# Get dotfiles directory first (before sourcing libraries)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ "$(basename "$SCRIPT_DIR")" == "scripts" ]]; then
     DOTFILES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -33,12 +33,15 @@ else
 fi
 SCRIPTS_DIR="$DOTFILES_DIR/scripts"
 
-# Source lib.sh for colors and common functions
-if [ ! -f "$SCRIPTS_DIR/lib.sh" ]; then
-    echo -e "\033[0;31mError: Cannot find lib.sh at $SCRIPTS_DIR/lib.sh\033[0m" >&2
+# Source shared libraries
+if [ ! -f "$SCRIPTS_DIR/lib-core.sh" ]; then
+    echo -e "\033[0;31mError: Cannot find lib-core.sh at $SCRIPTS_DIR/lib-core.sh\033[0m" >&2
     exit 1
 fi
-source "$SCRIPTS_DIR/lib.sh"
+source "$SCRIPTS_DIR/lib-core.sh"
+source "$SCRIPTS_DIR/lib-stow.sh"
+source "$SCRIPTS_DIR/lib-packages.sh"
+source "$SCRIPTS_DIR/lib-file.sh"
 
 # Additional color for this script
 BLUE='\033[0;34m'
@@ -115,7 +118,7 @@ if [[ -n "$OUTPUT_FILE" ]]; then
     echo "Results will be saved to: $OUTPUT_FILE" >&2
 fi
 
-# Set up STOW_DIR (DOTFILES_DIR already set from lib.sh sourcing above)
+# Set up STOW_DIR (DOTFILES_DIR already set from lib-core.sh sourcing above)
 STOW_DIR="$DOTFILES_DIR/stow"
 
 # Counters

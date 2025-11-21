@@ -8,8 +8,9 @@
 
 set -euo pipefail
 
-# Source shared library
-source "$(dirname "$0")/lib.sh"
+# Source shared libraries
+source "$(dirname "$0")/lib-core.sh"
+source "$(dirname "$0")/lib-packages.sh"
 
 # Parse arguments
 parse_common_args "$@"
