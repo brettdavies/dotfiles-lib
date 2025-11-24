@@ -108,9 +108,12 @@ check_tap_status() {
 check_package_status() {
     local pkg="$1"
     
+    # Extract package name (remove version pinning, e.g., "package@1.0.0" -> "package")
+    local pkg_name="${pkg%%@*}"
+    
     # Handle tap/package format
-    if [[ "$pkg" =~ / ]]; then
-        local tap="${pkg%%/*}"
+    if [[ "$pkg_name" =~ / ]]; then
+        local tap="${pkg_name%%/*}"
         if ! check_tap_installed "$tap/"; then
             verbose_would_install "Package" "$pkg (tap not installed)" >&3
             echo "missing"
@@ -118,7 +121,7 @@ check_package_status() {
         fi
     fi
     
-    if check_package_installed "$pkg"; then
+    if check_package_installed "$pkg_name"; then
         verbose_installed "Package" "$pkg" >&3
         echo "installed"
     else
@@ -132,7 +135,11 @@ check_package_status() {
 # Verbose output goes to fd 3 (stderr)
 check_cask_status() {
     local cask="$1"
-    if check_cask_installed "$cask"; then
+    
+    # Extract cask name (remove version pinning, e.g., "cask@1.0.0" -> "cask")
+    local cask_name="${cask%%@*}"
+    
+    if check_cask_installed "$cask_name"; then
         verbose_installed "Cask" "$cask" >&3
         echo "installed"
     else
@@ -156,6 +163,122 @@ check_vscode_extension_status() {
             verbose_would_install "VS Code extension" "$ext (code command not found)" >&3
         fi
         echo "missing"
+    fi
+}
+
+# Validate installed package version against constraints from packages.yaml
+# Parameters: $1 - package/cask name, $2 - platform (brew, linux, etc.)
+# Outputs validation messages to stderr
+validate_installed_package_version() {
+    local pkg_name="$1"
+    local platform="${2:-brew}"
+    
+    # Get version constraints from packages.yaml
+    get_package_version_constraints "$pkg_name" "$platform" || return 0
+    
+    # If no constraints, nothing to validate
+    if [ -z "$PACKAGE_MIN_VERSION" ] && [ -z "$PACKAGE_MAX_VERSION" ]; then
+        return 0
+    fi
+    
+    # Get installed version
+    local installed_version
+    if [ "$platform" = "brew" ]; then
+        # Try as package first, then as cask
+        installed_version=$(get_brew_package_version "$pkg_name" 2>/dev/null || get_brew_cask_version "$pkg_name" 2>/dev/null || echo "")
+    fi
+    
+    if [ -z "$installed_version" ]; then
+        # Package not installed, can't validate
+        return 0
+    fi
+    
+    # Validate version (use exclusive max if it came from caret expansion)
+    local max_exclusive="false"
+    if [ "${PACKAGE_MAX_VERSION_EXCLUSIVE:-false}" = "true" ]; then
+        max_exclusive="true"
+    fi
+    if ! validate_package_version "$installed_version" "$PACKAGE_MIN_VERSION" "$PACKAGE_MAX_VERSION" "$max_exclusive"; then
+        local constraint_msg=""
+        if [ -n "$PACKAGE_MIN_VERSION" ] && [ -n "$PACKAGE_MAX_VERSION" ]; then
+            constraint_msg=" (requires >= $PACKAGE_MIN_VERSION, <= $PACKAGE_MAX_VERSION)"
+        elif [ -n "$PACKAGE_MIN_VERSION" ]; then
+            constraint_msg=" (requires >= $PACKAGE_MIN_VERSION)"
+        elif [ -n "$PACKAGE_MAX_VERSION" ]; then
+            constraint_msg=" (requires <= $PACKAGE_MAX_VERSION)"
+        fi
+        log_warn "Package $pkg_name version $installed_version does not meet constraints$constraint_msg" >&3
+        return 1
+    fi
+    
+    return 0
+}
+
+# Validate all packages from packages.yaml after installation
+validate_all_package_versions() {
+    local packages_yaml="${STOW_DIR:-}/brew/packages.yaml"
+    
+    if [ ! -f "$packages_yaml" ] || ! command -v yq &> /dev/null; then
+        return 0
+    fi
+    
+    log_info "Validating package versions..."
+    local validation_errors=0
+    
+    # Validate packages
+    local package_keys
+    readarray -t package_keys < <(yq -r '.packages | keys[]' "$packages_yaml" 2>/dev/null || true)
+    
+    for pkg_key in "${package_keys[@]}"; do
+        # Skip if package doesn't have brew field
+        local brew_name
+        brew_name=$(yq -r ".packages.\"$pkg_key\".brew // empty" "$packages_yaml" 2>/dev/null || echo "")
+        [ -z "$brew_name" ] && continue
+        
+        # Handle both string and object forms
+        if [ "$brew_name" != "null" ] && [ -n "$brew_name" ]; then
+            # Extract name if it's an object
+            if yq -e ".packages.\"$pkg_key\".brew | type == \"object\"" "$packages_yaml" &>/dev/null; then
+                brew_name=$(yq -r ".packages.\"$pkg_key\".brew.name // empty" "$packages_yaml" 2>/dev/null || echo "")
+            fi
+            
+            if [ -n "$brew_name" ] && [ "$brew_name" != "null" ]; then
+                if ! validate_installed_package_version "$pkg_key" "brew"; then
+                    ((validation_errors++))
+                fi
+            fi
+        fi
+    done
+    
+    # Validate casks
+    local cask_keys
+    readarray -t cask_keys < <(yq -r '.casks | keys[]' "$packages_yaml" 2>/dev/null || true)
+    
+    for cask_key in "${cask_keys[@]}"; do
+        local brew_name
+        brew_name=$(yq -r ".casks.\"$cask_key\".brew // empty" "$packages_yaml" 2>/dev/null || echo "")
+        [ -z "$brew_name" ] && continue
+        
+        # Handle both string and object forms
+        if [ "$brew_name" != "null" ] && [ -n "$brew_name" ]; then
+            if yq -e ".casks.\"$cask_key\".brew | type == \"object\"" "$packages_yaml" &>/dev/null; then
+                brew_name=$(yq -r ".casks.\"$cask_key\".brew.name // empty" "$packages_yaml" 2>/dev/null || echo "")
+            fi
+            
+            if [ -n "$brew_name" ] && [ "$brew_name" != "null" ]; then
+                if ! validate_installed_package_version "$cask_key" "brew"; then
+                    ((validation_errors++))
+                fi
+            fi
+        fi
+    done
+    
+    if [ "$validation_errors" -gt 0 ]; then
+        log_warn "Found $validation_errors package(s) with version constraint violations"
+        return 1
+    else
+        log_info "All package versions validated successfully"
+        return 0
     fi
 }
 
@@ -327,6 +450,9 @@ install_macos_packages() {
     progress_start "Installing packages from Brewfile..."
     brew bundle --file="$STOW_DIR/brew/Brewfile"
     progress_complete "Package installation complete"
+    
+    # Validate package versions after installation
+    validate_all_package_versions || true
     
     # Ask about optional packages
     if [ -f "$STOW_DIR/brew/Brewfile.optional" ]; then
