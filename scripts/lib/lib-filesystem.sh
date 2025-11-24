@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # File system operations and optimizations
 # Provides optimized find operations, directory caching, and file system utilities
 # Requires: lib-core.sh (for DOTFILES_DIR, STOW_DIR)

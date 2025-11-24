@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Constants library
 # Provides color constants and file permission constants
 # This file should be sourced early, before other libraries that need colors

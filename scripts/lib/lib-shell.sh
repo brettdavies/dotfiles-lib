@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Modern shell features library
 # Provides functions for modern shell features like readarray/mapfile helpers
 # Requires: lib-os.sh (for is_zsh)

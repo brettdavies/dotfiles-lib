@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Input validation and sanitization functions
 # Provides functions for validating paths, filenames, and arguments
 # Requires: lib-core.sh (for DOTFILES_DIR, HOME)

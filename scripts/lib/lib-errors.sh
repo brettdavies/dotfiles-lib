@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Error handling and reporting functions
 # Provides functions for error reporting, warnings, and trap handlers
 # Requires: lib-core.sh (for colors)

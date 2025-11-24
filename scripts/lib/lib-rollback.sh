@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Rollback/undo functionality
 # Provides functions for tracking operations and creating rollback scripts
 # Requires: lib-core.sh, lib-temp.sh (via lib-core.sh), lib-logging.sh (via lib-core.sh)

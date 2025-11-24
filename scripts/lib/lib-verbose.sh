@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Verbose output helpers library
 # Provides standardized verbose output functions for consistent formatting
 # Requires: lib-constants.sh (for colors), lib-args.sh (for VERBOSE flag)

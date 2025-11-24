@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Main dotfiles installation orchestrator
 # Coordinates all installation steps
 #

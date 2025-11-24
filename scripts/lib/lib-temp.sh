@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Temporary directory management
 # Provides functions for creating and managing a single temporary directory per script execution
 # Uses a single directory approach: one temp directory per script, cleaned up on exit

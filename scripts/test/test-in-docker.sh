@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Test dotfiles installation in a Docker container
 #
 # This script is designed to run inside a Docker container to test the

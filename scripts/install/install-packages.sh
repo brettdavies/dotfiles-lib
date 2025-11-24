@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Install packages from Brewfile (optional)
 # On macOS: Uses Homebrew
 # On Linux: Uses system package manager (apt/yum/dnf/apk)

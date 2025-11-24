@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # File operations helper functions
 # Provides functions for file operations like getting permissions
 # Requires: lib-core.sh (for common variables)

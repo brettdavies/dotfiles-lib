@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Sync-local helper functions
 # Provides functions for syncing local changes back into the dotfiles repository
 # Requires: lib-core.sh (for DOTFILES_DIR variable)

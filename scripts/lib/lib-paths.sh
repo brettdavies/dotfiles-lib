@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Path and directory utilities library
 # Provides functions for determining dotfiles directory and common path variables
 # Requires: lib-os.sh (for detect_os)

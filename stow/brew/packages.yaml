@@ -1,4 +1,9 @@
 packages:
+  bash:
+    brew: bash
+    linux:
+      pkg: bash
+  
   ripgrep:
     brew: ripgrep
     linux:

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Progress indicator functions using ConEmu OSC 9;4 escape sequence protocol
 # Provides standardized progress reporting for terminal emulators
 # Requires: lib-core.sh (for VERBOSE flag)

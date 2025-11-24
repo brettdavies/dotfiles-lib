@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Check if dotfiles are fully implemented on this system
 #
 # This script verifies that all dotfiles configurations are properly set up:

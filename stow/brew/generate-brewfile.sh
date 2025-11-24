@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Generate Brewfile from packages.yaml
 # Run this after updating packages.yaml
 

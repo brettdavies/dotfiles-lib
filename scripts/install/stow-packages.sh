@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Stow all dotfiles packages to create symlinks
 #
 # Uses stow --dotfiles for all packages except VS Code (see exception in code).

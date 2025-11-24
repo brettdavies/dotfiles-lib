@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # BATS test runner script
 # Runs all BATS tests in the test directory
 

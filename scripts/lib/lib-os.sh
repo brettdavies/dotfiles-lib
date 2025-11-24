@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # OS detection and shell detection library
 # Provides functions for detecting operating system and shell type
 # Requires: lib-constants.sh (for potential future use)

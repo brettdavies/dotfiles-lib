@@ -21,6 +21,7 @@ brew "oven-sh/bun/bun"
 brew "uv"
 
 # Code quality & utilities
+brew "bash"
 brew "ripgrep"
 brew "jq"
 brew "tree"

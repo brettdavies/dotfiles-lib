@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Argument parsing library
 # Provides functions for parsing common command-line arguments
 # Requires: lib-constants.sh (for potential future use)

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Structured logging system
 # Provides functions for logging to files with timestamps and log levels
 # Requires: lib-core.sh (for VERBOSE flag, colors)

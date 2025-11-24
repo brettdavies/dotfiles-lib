@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Package checking helper functions
 # Provides functions for checking Homebrew packages, taps, casks, and IDE extensions
 # Requires: lib-core.sh (for common variables)

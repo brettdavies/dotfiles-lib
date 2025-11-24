@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Create .secrets file with proper permissions
 
 set -euo pipefail

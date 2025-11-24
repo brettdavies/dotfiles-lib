@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Core library for dotfiles installation scripts
 # Orchestrates loading of all core libraries in the correct order
 # This file should be sourced by all scripts

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Create .lmstudio-home-pointer if LM Studio is installed
 
 set -euo pipefail

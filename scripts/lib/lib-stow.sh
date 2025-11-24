@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Stow and symlink helper functions
 # Provides functions for checking symlinks and transforming dotfiles paths
 # Requires: lib-core.sh (for DOTFILES_DIR, STOW_DIR variables)
