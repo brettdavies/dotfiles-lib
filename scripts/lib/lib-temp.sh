@@ -40,10 +40,15 @@ SCRIPT_TEMP_DIR=""
 init_temp_dir() {
     local template="${1:-dotfiles.XXXXXX}"
     
-    # If already initialized, return existing directory
-    if [ -n "$SCRIPT_TEMP_DIR" ] && [ -d "$SCRIPT_TEMP_DIR" ]; then
+    # If already initialized and directory exists, return existing directory
+    if [ -n "${SCRIPT_TEMP_DIR:-}" ] && [ -d "$SCRIPT_TEMP_DIR" ]; then
         echo -n "$SCRIPT_TEMP_DIR"
         return 0
+    fi
+    
+    # Clear SCRIPT_TEMP_DIR if it's set but directory doesn't exist
+    if [ -n "${SCRIPT_TEMP_DIR:-}" ] && [ ! -d "$SCRIPT_TEMP_DIR" ]; then
+        SCRIPT_TEMP_DIR=""
     fi
     
     # Create temp directory in system temp directory
@@ -53,7 +58,7 @@ init_temp_dir() {
     fi
     
     if [ -z "$SCRIPT_TEMP_DIR" ] || [ ! -d "$SCRIPT_TEMP_DIR" ]; then
-        err "Failed to create temporary directory" 1
+        err "Failed to create temporary directory" 1 >&2
         return 1
     fi
     
@@ -80,11 +85,14 @@ init_temp_dir() {
 #   TEMP_DIR=$(get_temp_dir)
 #   echo "Using temp dir: $TEMP_DIR"
 get_temp_dir() {
-    if [ -z "$SCRIPT_TEMP_DIR" ] || [ ! -d "$SCRIPT_TEMP_DIR" ]; then
-        init_temp_dir
-    else
+    # If SCRIPT_TEMP_DIR is set and directory exists, return it
+    if [ -n "${SCRIPT_TEMP_DIR:-}" ] && [ -d "$SCRIPT_TEMP_DIR" ]; then
         echo -n "$SCRIPT_TEMP_DIR"
+        return 0
     fi
+    
+    # Otherwise, initialize a new temp directory
+    init_temp_dir
 }
 
 # Create a temporary file in the script's temporary directory

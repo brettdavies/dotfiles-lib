@@ -63,4 +63,14 @@ window-padding-y = 10
 keybind = shift+enter=text:\x1b\r
 
 # Shell integration
-shell-integration = zsh
+shell-integration = enabled
+
+# Window title format (shows current directory and command)
+window-title-format = {cwd} - {title}
+
+# Bell configuration - use visual bell for better notifications
+bell = visual
+
+# Cursor configuration (already set, but ensuring it's explicit)
+cursor-style = block
+cursor-color = #abb2bf

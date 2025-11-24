@@ -50,7 +50,7 @@ err() {
 
 # Fatal error function that shows line number and exits
 # 
-# Purpose: Reports fatal errors with line number and exits the script
+# Purpose: Reports fatal errors with line number, call stack, and exits the script
 # 
 # Parameters:
 #   $1 - Error message (required, should include actionable guidance)
@@ -64,15 +64,37 @@ err() {
 #   die "Failed to create directory: $dir. Check permissions and try again." 1
 #   die "Required command 'stow' not found. Install with: brew install stow" 1
 # 
-# Error message format: "Fatal Error [script:line] (timestamp): message"
+# Error message format: "Fatal Error [script:line] (timestamp): message [Call stack: ...]"
 # Always include actionable guidance in fatal error messages
 die() {
     local message="$1"
     local exit_code="${2:-1}"
     local script_name="${0##*/}"
-    local line_number="${BASH_LINENO[0]}"
+    local line_number
+    
+    # Get line number with better context
+    if is_zsh; then
+        # Zsh: use $LINENO or funcfiletrace
+        line_number="${LINENO:-?}"
+    else
+        # Bash: use BASH_LINENO array
+        if [ -n "${BASH_LINENO[0]:-}" ]; then
+            line_number="${BASH_LINENO[0]}"
+        else
+            line_number="${LINENO:-?}"
+        fi
+    fi
+    
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo -e "${RED}Fatal Error [$script_name:$line_number] ($timestamp): $message${NC}" >&2
+    local call_stack
+    call_stack=$(get_call_stack)
+    
+    local full_message="Fatal Error [$script_name:$line_number] ($timestamp): $message"
+    if [ -n "$call_stack" ]; then
+        full_message="${full_message} [Call stack: $call_stack]"
+    fi
+    
+    echo -e "${RED}${full_message}${NC}" >&2
     exit "$exit_code"
 }
 
@@ -106,24 +128,188 @@ handle_signal() {
     exit 130  # Standard exit code for SIGINT
 }
 
-# Handle errors with context
+# Get function call stack for error reporting
+# 
+# Purpose: Builds a human-readable function call stack for error context
+# 
+# Parameters: None
+# 
+# Returns: Call stack string via echo
+# 
+# Side effects: None
+# 
+# Example:
+#   stack=$(get_call_stack)
+#   echo "Call stack: $stack"
+get_call_stack() {
+    local stack=""
+    
+    if is_zsh; then
+        # Zsh uses funcfiletrace array
+        if [ -n "${funcfiletrace[@]:-}" ]; then
+            local i
+            for i in "${funcfiletrace[@]}"; do
+                if [ -n "$stack" ]; then
+                    stack="${stack} -> "
+                fi
+                stack="${stack}${i}"
+            done
+        fi
+    else
+        # Bash uses FUNCNAME and BASH_SOURCE arrays
+        if [ -n "${FUNCNAME[@]:-}" ] && [ ${#FUNCNAME[@]} -gt 1 ]; then
+            local i
+            # Skip first element (current function) and last (main)
+            for ((i=1; i<${#FUNCNAME[@]}-1; i++)); do
+                if [ -n "$stack" ]; then
+                    stack="${stack} -> "
+                fi
+                local func="${FUNCNAME[$i]}"
+                local file="${BASH_SOURCE[$i]##*/}"
+                local line="${BASH_LINENO[$i-1]}"
+                stack="${stack}${func}(${file}:${line})"
+            done
+        fi
+    fi
+    
+    echo -n "$stack"
+}
+
+# Handle errors with enhanced context
 # Usage: handle_error <exit_code> <line_number>
+# 
+# Purpose: Enhanced error handler that includes call stack information
 handle_error() {
     local exit_code="$1"
     local line_number="$2"
     local script_name="${0##*/}"
+    local call_stack
+    call_stack=$(get_call_stack)
+    
+    local error_msg="Error at line $line_number (exit code: $exit_code)"
+    if [ -n "$call_stack" ]; then
+        error_msg="${error_msg} [Call stack: $call_stack]"
+    fi
+    
     # Use log_error if available, otherwise use err
     if command -v log_error &> /dev/null; then
-        log_error "Error at line $line_number (exit code: $exit_code)"
+        log_error "$error_msg"
     else
-        err "Error at line $line_number (exit code: $exit_code)" "$exit_code"
+        err "$error_msg" "$exit_code"
     fi
     cleanup_temp_dir
+}
+
+# Function cleanup handler (for RETURN trap)
+# Usage: Internal use by setup_function_traps
+# 
+# Purpose: Handles cleanup when a function returns
+_function_return_handler() {
+    local exit_code=$?
+    # Only perform cleanup if function exited with error
+    if [ $exit_code -ne 0 ]; then
+        # Could add function-specific cleanup here if needed
+        :
+    fi
+    return $exit_code
+}
+
+# Setup function-level traps (RETURN trap)
+# Usage: setup_function_traps [cleanup_function]
+# 
+# Purpose: Sets up RETURN trap for function-level cleanup and error tracking
+#   This allows tracking when functions return and performing cleanup
+# 
+# Parameters:
+#   $1 - Optional cleanup function to call on function return
+# 
+# Returns: Nothing
+# 
+# Side effects: Sets up RETURN trap
+# 
+# Example:
+#   setup_function_traps my_cleanup
+setup_function_traps() {
+    local cleanup_func="${1:-}"
+    
+    if [ -n "$cleanup_func" ]; then
+        # Use provided cleanup function
+        trap "$cleanup_func" RETURN
+    else
+        # Use default handler
+        trap '_function_return_handler' RETURN
+    fi
+}
+
+# Enable debug tracing with BASH_XTRACEFD (Bash 5.1+)
+# Usage: enable_debug_tracing [log_file]
+# 
+# Purpose: Redirects set -x output to a separate file descriptor
+#   This allows debug output to be separated from stdout/stderr
+# 
+# Parameters:
+#   $1 - Optional log file path (default: /tmp/debug-$$.log)
+# 
+# Returns: 0 on success, 1 if not supported
+# 
+# Side effects: Sets up BASH_XTRACEFD and enables tracing
+# 
+# Example:
+#   enable_debug_tracing "/tmp/my-debug.log"
+#   set -x
+enable_debug_tracing() {
+    local log_file="${1:-/tmp/debug-$$.log}"
+    
+    if ! has_xtracefd_support; then
+        # Not supported, return failure
+        return 1
+    fi
+    
+    # Create log file
+    touch "$log_file" 2>/dev/null || return 1
+    
+    # Open file descriptor for debug output
+    exec {BASH_XTRACEFD}>"$log_file" || return 1
+    
+    # Enable tracing
+    set -x
+    
+    return 0
+}
+
+# Wait for any background process to complete (Bash 5.1+)
+# Usage: wait_for_any_process
+# 
+# Purpose: Waits for any background process to complete
+#   Uses wait -n when available (Bash 5.1+), falls back to wait
+# 
+# Parameters: None
+# 
+# Returns: Exit code of the completed process
+# 
+# Side effects: Waits for a background process
+# 
+# Example:
+#   some_command &
+#   wait_for_any_process
+wait_for_any_process() {
+    if has_wait_n_support; then
+        # Bash 5.1+: use wait -n
+        wait -n
+        return $?
+    else
+        # Fallback: wait for all background processes
+        wait
+        return $?
+    fi
 }
 
 # Setup trap handlers for cleanup and error handling
 # Usage: setup_traps [cleanup_function]
 # Example: setup_traps cleanup_temp_dir
+# 
+# Purpose: Sets up comprehensive trap handlers for signals, errors, and cleanup
+#   Enhanced with RETURN trap support and better error context
 setup_traps() {
     local cleanup_func="${1:-cleanup_temp_dir}"
     
@@ -134,10 +320,20 @@ setup_traps() {
     trap "handle_signal INT" INT
     trap "handle_signal TERM" TERM
     
-    # Error handler (only if set -e is not used, or for better error reporting)
+    # Error handler with enhanced context
+    # Use BASH_LINENO for better line number reporting
     if [[ "${-}" != *e* ]]; then
-        trap 'handle_error $? $LINENO' ERR
+        if is_zsh; then
+            trap 'handle_error $? $LINENO' ERR
+        else
+            # Bash: use BASH_LINENO for more accurate line numbers
+            trap 'handle_error $? ${BASH_LINENO[0]:-$LINENO}' ERR
+        fi
     fi
+    
+    # Setup function return trap if supported
+    # RETURN trap is available in both Bash and zsh
+    setup_function_traps
 }
 
 # Note: Temporary file management has been moved to lib-temp.sh

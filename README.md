@@ -447,6 +447,56 @@ The scripts leverage modern shell features where available:
 - **Cross-Platform Compatibility**: Works on both macOS and Linux with automatic OS detection
 - **Bash 3.2 Compatibility**: Fallbacks for older Bash versions (e.g., macOS default)
 
+#### Shell Version Requirements
+
+The codebase is optimized for modern shells while maintaining backward compatibility:
+
+**Bash:**
+
+- **Bash 5.2+**: Full feature support (namerefs, wait -n, BASH_XTRACEFD, mapfile -d)
+- **Bash 5.1+**: Most features supported (wait -n, BASH_XTRACEFD)
+- **Bash 5.0+**: Enhanced features available
+- **Bash 4.4+**: mapfile with null delimiter support
+- **Bash 4.3+**: Nameref variable support
+- **Bash 4.0+**: Associative arrays, readarray
+- **Bash 3.2**: Basic functionality with fallbacks
+
+**Zsh:**
+
+- **Zsh 5.9+**: All features supported
+- **Zsh 5.1+**: Parameter expansion flags (:u, :l)
+- **Zsh 5.0.8+**: HIST_FCNTL_LOCK for better history locking
+- **Zsh 5.0+**: All zsh modules and glob qualifiers
+
+#### Advanced Features
+
+**Bash 5.2+ Features:**
+
+- Nameref variables (`local -n`) for safer array manipulation
+- `wait -n` for waiting on any background process
+- `BASH_XTRACEFD` for separated debug output
+- Enhanced error context with `BASH_LINENO` arrays
+
+**Zsh Features:**
+
+- **Zsh Modules**: Automatically loads `zsh/files`, `zsh/stat`, `zsh/datetime`, `zsh/parameter` for built-in operations
+- **Glob Qualifiers**: Uses zsh glob qualifiers (`**/*.sh(.)`) for faster file finding
+- **Parameter Expansion**: Advanced parameter expansion flags (`${(s:,:)string}`, `${(j:,:)array}`)
+- **Built-in File Operations**: Uses `zf_*` functions and `zstat` for better performance
+
+**Error Handling:**
+
+- RETURN trap support for function-level cleanup
+- Enhanced error messages with call stack information
+- Debug tracing with `--debug` flag and `BASH_XTRACEFD`
+- Better error context using `FUNCNAME`/`funcfiletrace` arrays
+
+**Terminal Integration:**
+
+- OSC 7 support for current directory reporting (Ghostty and other modern terminals)
+- OSC 9;4 protocol for progress indicators
+- Enhanced Ghostty configuration with modern features
+
 ## Troubleshooting
 
 ### General Debugging

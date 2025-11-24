@@ -32,10 +32,9 @@ load 'test_helper'
     mkdir -p "$test_dir/subdir2"
     touch "$test_dir/file.txt"
     
-    local dirs_array
-    find_dirs_in_dir dirs_array "$test_dir"
+    find_dirs_in_dir "$test_dir"
     
-    [ "${#dirs_array[@]}" -ge 2 ]
+    [ "${#FIND_RESULTS[@]}" -ge 2 ]
 }
 
 @test "filesystem: count_files_in_dir counts files correctly" {
@@ -78,9 +77,108 @@ load 'test_helper'
     load_lib "lib-filesystem"
     
     init_dir_cache
-    clear_dir_cache
+    run clear_dir_cache
     
     # Cache should be cleared (no way to directly verify, but function should not fail)
     assert_success
+}
+
+# ============================================================================
+# Zsh Glob Qualifier Tests
+# ============================================================================
+
+@test "filesystem: find_files_zsh_glob works under zsh" {
+    load_lib "lib-filesystem"
+    
+    # Skip if not running under zsh
+    is_zsh || skip "Not running under zsh"
+    
+    local test_dir="$BATS_TEST_TMPDIR/zshglob"
+    mkdir -p "$test_dir"
+    touch "$test_dir/file1.sh"
+    touch "$test_dir/file2.sh"
+    touch "$test_dir/file3.txt"
+    
+    run find_files_zsh_glob "$test_dir" "f" "*.sh"
+    assert_success
+    
+    [ "${#FIND_RESULTS[@]}" -ge 2 ]
+}
+
+@test "filesystem: find_files_zsh_glob returns empty when not zsh" {
+    load_lib "lib-filesystem"
+    
+    # Skip if running under zsh (this test is for bash)
+    is_zsh && skip "Running under zsh, skipping bash fallback test"
+    
+    local test_dir="$BATS_TEST_TMPDIR/bash_test"
+    mkdir -p "$test_dir"
+    touch "$test_dir/file1.txt"
+    
+    # Should return empty array and exit with failure when not zsh
+    run find_files_zsh_glob "$test_dir" "f"
+    assert_failure
+    [ "${#FIND_RESULTS[@]}" -eq 0 ]
+}
+
+@test "filesystem: get_dir_listing_zsh works under zsh" {
+    load_lib "lib-filesystem"
+    
+    # Skip if not running under zsh
+    is_zsh || skip "Not running under zsh"
+    
+    local test_dir="$BATS_TEST_TMPDIR/zshlist"
+    mkdir -p "$test_dir"
+    touch "$test_dir/file1.txt"
+    touch "$test_dir/file2.txt"
+    mkdir -p "$test_dir/subdir"
+    
+    run get_dir_listing_zsh "$test_dir" "f"
+    assert_success
+    
+    [ "${#DIR_LISTING[@]}" -ge 2 ]
+}
+
+@test "filesystem: find_files_in_dir works with zsh globs or find fallback" {
+    load_lib "lib-filesystem"
+    
+    # This test verifies that find_files_in_dir works correctly whether using
+    # zsh glob qualifiers or find command fallback
+    local test_dir="$BATS_TEST_TMPDIR/fallback_test"
+    mkdir -p "$test_dir"
+    touch "$test_dir/test1.txt"
+    touch "$test_dir/test2.txt"
+    touch "$test_dir/test3.sh"
+    
+    find_files_in_dir "$test_dir" "-type f"
+    
+    # Should find files regardless of method used (zsh globs or find)
+    [ "${#FIND_RESULTS[@]}" -ge 3 ]
+    
+    # Verify specific files are found
+    local found=false
+    for file in "${FIND_RESULTS[@]}"; do
+        if [[ "$file" == *"test1.txt" ]]; then
+            found=true
+            break
+        fi
+    done
+    [ "$found" = true ]
+}
+
+@test "filesystem: find_files_in_dir fallback produces correct results" {
+    load_lib "lib-filesystem"
+    
+    # Test that fallback to find command produces same results as zsh globs
+    local test_dir="$BATS_TEST_TMPDIR/fallback_verify"
+    mkdir -p "$test_dir/subdir"
+    touch "$test_dir/file1.txt"
+    touch "$test_dir/subdir/file2.txt"
+    
+    find_files_in_dir "$test_dir" "-type f"
+    local count="${#FIND_RESULTS[@]}"
+    
+    # Should find both files regardless of implementation
+    [ "$count" -ge 2 ]
 }
 

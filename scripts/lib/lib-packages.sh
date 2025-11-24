@@ -18,7 +18,8 @@ PACKAGE_CACHE_INITIALIZED=false
 # Associative arrays for caching (Bash 4+ or zsh)
 # For Bash 3.2 compatibility, we'll check and use alternative approach if needed
 # Use zsh-specific typeset -A if running under zsh for better performance
-if is_zsh; then
+# Check if is_zsh function exists (it should be loaded via lib-core.sh -> lib-os.sh)
+if command -v is_zsh >/dev/null 2>&1 && is_zsh; then
     # Zsh uses typeset -A for associative arrays
     typeset -A TAP_CACHE
     typeset -A PACKAGE_CACHE
@@ -142,35 +143,37 @@ get_cached_package_status() {
     
     case "$cache_type" in
         "package")
-            if [[ -v PACKAGE_CACHE["$name"] ]]; then
+            # Check if key exists using parameter expansion (works in Bash 4.0+ and zsh)
+            # The ${ARRAY[key]+set} pattern returns "set" if key exists, empty otherwise
+            if [[ -n "${PACKAGE_CACHE[$name]+set}" ]]; then
                 echo -n "${PACKAGE_CACHE[$name]}"
             else
                 echo -n "missing"
             fi
             ;;
         "cask")
-            if [[ -v CASK_CACHE["$name"] ]]; then
+            if [[ -n "${CASK_CACHE[$name]+set}" ]]; then
                 echo -n "${CASK_CACHE[$name]}"
             else
                 echo -n "missing"
             fi
             ;;
         "tap")
-            if [[ -v TAP_CACHE["$name"] ]]; then
+            if [[ -n "${TAP_CACHE[$name]+set}" ]]; then
                 echo -n "${TAP_CACHE[$name]}"
             else
                 echo -n "missing"
             fi
             ;;
         "vscode_ext")
-            if [[ -v VSCODE_EXT_CACHE["$name"] ]]; then
+            if [[ -n "${VSCODE_EXT_CACHE[$name]+set}" ]]; then
                 echo -n "${VSCODE_EXT_CACHE[$name]}"
             else
                 echo -n "missing"
             fi
             ;;
         "cursor_ext")
-            if [[ -v CURSOR_EXT_CACHE["$name"] ]]; then
+            if [[ -n "${CURSOR_EXT_CACHE[$name]+set}" ]]; then
                 echo -n "${CURSOR_EXT_CACHE[$name]}"
             else
                 echo -n "missing"
@@ -630,18 +633,18 @@ get_package_version_constraints() {
     # Get platform-specific constraints first, then fall back to package-level
     if [ -n "$platform" ] && [ "$platform" = "brew" ]; then
         # Check for brew-specific target_version first
-        brew_target_version=$(yq -r "$base_path.brew_target_version // empty" "$packages_yaml" 2>/dev/null || echo "")
+        brew_target_version=$(yq -r "$base_path.brew_target_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
         
         # Also check if brew is an object with target_version field
         if [ -z "$brew_target_version" ] || [ "$brew_target_version" = "null" ]; then
-            brew_target_version=$(yq -r "$base_path.brew.target_version // empty" "$packages_yaml" 2>/dev/null || echo "")
+            brew_target_version=$(yq -r "$base_path.brew.target_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
         fi
         
         # Use brew_target_version if available, otherwise fall back to package-level target_version
         if [ -n "$brew_target_version" ] && [ "$brew_target_version" != "null" ]; then
             target_version="$brew_target_version"
         else
-            target_version=$(yq -r "$base_path.target_version // empty" "$packages_yaml" 2>/dev/null || echo "")
+            target_version=$(yq -r "$base_path.target_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
         fi
         
         # If target_version is set, expand it and use as min/max (overriding any explicit min/max)
@@ -658,19 +661,19 @@ get_package_version_constraints() {
         fi
         
         # No target_version, check for brew-specific min/max constraints
-        PACKAGE_MIN_VERSION=$(yq -r "$base_path.brew_min_version // $base_path.min_version // empty" "$packages_yaml" 2>/dev/null || echo "")
-        PACKAGE_MAX_VERSION=$(yq -r "$base_path.brew_max_version // $base_path.max_version // empty" "$packages_yaml" 2>/dev/null || echo "")
+        PACKAGE_MIN_VERSION=$(yq -r "$base_path.brew_min_version // $base_path.min_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
+        PACKAGE_MAX_VERSION=$(yq -r "$base_path.brew_max_version // $base_path.max_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
         
         # Also check if brew is an object with version fields
         if [ -z "$PACKAGE_MIN_VERSION" ] || [ "$PACKAGE_MIN_VERSION" = "null" ]; then
-            PACKAGE_MIN_VERSION=$(yq -r "$base_path.brew.min_version // $base_path.min_version // empty" "$packages_yaml" 2>/dev/null || echo "")
+            PACKAGE_MIN_VERSION=$(yq -r "$base_path.brew.min_version // $base_path.min_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
         fi
         if [ -z "$PACKAGE_MAX_VERSION" ] || [ "$PACKAGE_MAX_VERSION" = "null" ]; then
-            PACKAGE_MAX_VERSION=$(yq -r "$base_path.brew.max_version // $base_path.max_version // empty" "$packages_yaml" 2>/dev/null || echo "")
+            PACKAGE_MAX_VERSION=$(yq -r "$base_path.brew.max_version // $base_path.max_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
         fi
     else
         # Use package-level constraints
-        target_version=$(yq -r "$base_path.target_version // empty" "$packages_yaml" 2>/dev/null || echo "")
+        target_version=$(yq -r "$base_path.target_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
         
         # If target_version is set, expand it and use as min/max
         if [ -n "$target_version" ] && [ "$target_version" != "null" ]; then
@@ -686,8 +689,8 @@ get_package_version_constraints() {
         fi
         
         # No target_version, use package-level min/max
-        PACKAGE_MIN_VERSION=$(yq -r "$base_path.min_version // empty" "$packages_yaml" 2>/dev/null || echo "")
-        PACKAGE_MAX_VERSION=$(yq -r "$base_path.max_version // empty" "$packages_yaml" 2>/dev/null || echo "")
+        PACKAGE_MIN_VERSION=$(yq -r "$base_path.min_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
+        PACKAGE_MAX_VERSION=$(yq -r "$base_path.max_version // \"\"" "$packages_yaml" 2>/dev/null || echo "")
     fi
     
     # Clean up null values

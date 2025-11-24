@@ -24,18 +24,54 @@ validate_path_within() {
     local base_dir="$2"
     local description="${3:-path}"
     
-    # Normalize paths
-    local normalized_path
-    normalized_path=$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path") || {
-        err "Invalid $description: $path (cannot normalize)"
-        return 1
-    }
-    
+    # Normalize base directory first (must exist)
     local normalized_base
     normalized_base=$(cd "$base_dir" 2>/dev/null && pwd) || {
         err "Invalid base directory: $base_dir"
         return 1
     }
+    
+    # Normalize path (may not exist, so handle parent directory)
+    local normalized_path
+    if [ -e "$path" ]; then
+        # Path exists, normalize it
+        normalized_path=$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path") || {
+            err "Invalid $description: $path (cannot normalize)"
+            return 1
+        }
+    else
+        # Path doesn't exist, normalize based on parent directory
+        local path_dir=$(dirname "$path")
+        local path_name=$(basename "$path")
+        
+        # If path is relative, resolve it relative to base_dir
+        if [[ "$path" != /* ]]; then
+            # Relative path - resolve relative to base_dir
+            local abs_path="$normalized_base/$path"
+            path_dir=$(dirname "$abs_path")
+            path_name=$(basename "$abs_path")
+        fi
+        
+        # Try to normalize the parent directory
+        if [ -d "$path_dir" ]; then
+            # Parent directory exists, normalize it
+            normalized_path=$(cd "$path_dir" 2>/dev/null && pwd)/$path_name || {
+                err "Invalid $description: $path (cannot normalize)"
+                return 1
+            }
+        else
+            # Parent directory doesn't exist, construct path from normalized base
+            # This handles cases where we're validating a path that will be created
+            if [[ "$path" != /* ]]; then
+                # Relative path - construct from base_dir
+                normalized_path="$normalized_base/$path"
+            else
+                # Absolute path with non-existent parent - can't validate
+                err "Invalid $description: $path (parent directory does not exist)"
+                return 1
+            fi
+        fi
+    fi
     
     # Check if path starts with base directory
     if [[ "$normalized_path" != "$normalized_base"/* ]] && [[ "$normalized_path" != "$normalized_base" ]]; then
@@ -86,7 +122,10 @@ sanitize_filename() {
     filename="${filename//:/_}"
     
     # Remove leading/trailing dots and spaces
-    filename="${filename#.}"
+    # Remove all leading dots (in case multiple remain)
+    while [[ "$filename" == .* ]]; do
+        filename="${filename#.}"
+    done
     filename="${filename%.}"
     filename="${filename#"${filename%%[![:space:]]*}"}"  # Remove leading spaces
     filename="${filename%"${filename##*[![:space:]]}"}"  # Remove trailing spaces
@@ -113,8 +152,16 @@ prevent_path_traversal() {
         return 1
     fi
     
+    # Make path absolute if it's relative
+    local abs_path
+    if [[ "$path" != /* ]]; then
+        abs_path="$base_dir/$path"
+    else
+        abs_path="$path"
+    fi
+    
     # Validate path is within base directory
-    validate_path_within "$path" "$base_dir" "path"
+    validate_path_within "$abs_path" "$base_dir" "path"
 }
 
 # Validate command-line arguments

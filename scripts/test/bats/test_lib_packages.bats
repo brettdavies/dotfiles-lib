@@ -334,8 +334,10 @@ load 'test_helper'
         skip "yq not available for testing"
     fi
     
-    # Create test packages.yaml
-    local test_yaml="$STOW_DIR/brew/packages.yaml"
+    # Create test packages.yaml in test temp directory
+    # Function expects $STOW_DIR/brew/packages.yaml, so create that structure
+    local test_stow_dir="$BATS_TEST_TMPDIR/test_stow"
+    local test_yaml="$test_stow_dir/brew/packages.yaml"
     mkdir -p "$(dirname "$test_yaml")"
     cat > "$test_yaml" <<EOF
 packages:
@@ -344,7 +346,19 @@ packages:
     target_version: "5.2^"
 EOF
     
+    # Temporarily override STOW_DIR to point to test temp directory
+    local original_stow_dir="${STOW_DIR:-}"
+    export STOW_DIR="$test_stow_dir"
+    
     get_package_version_constraints "bash" "brew"
+    
+    # Restore original STOW_DIR
+    if [ -n "$original_stow_dir" ]; then
+        export STOW_DIR="$original_stow_dir"
+    else
+        unset STOW_DIR
+    fi
+    
     [ "$PACKAGE_MIN_VERSION" = "5.2.0" ]
     [ "$PACKAGE_MAX_VERSION" = "5.3.0" ]
     [ "$PACKAGE_MAX_VERSION_EXCLUSIVE" = "true" ]
@@ -358,8 +372,10 @@ EOF
         skip "yq not available for testing"
     fi
     
-    # Create test packages.yaml
-    local test_yaml="$STOW_DIR/brew/packages.yaml"
+    # Create test packages.yaml in test temp directory
+    # Function expects $STOW_DIR/brew/packages.yaml, so create that structure
+    local test_stow_dir="$BATS_TEST_TMPDIR/test_stow"
+    local test_yaml="$test_stow_dir/brew/packages.yaml"
     mkdir -p "$(dirname "$test_yaml")"
     cat > "$test_yaml" <<EOF
 packages:
@@ -369,7 +385,19 @@ packages:
     brew_target_version: "5.2^"
 EOF
     
+    # Temporarily override STOW_DIR to point to test temp directory
+    local original_stow_dir="${STOW_DIR:-}"
+    export STOW_DIR="$test_stow_dir"
+    
     get_package_version_constraints "bash" "brew"
+    
+    # Restore original STOW_DIR
+    if [ -n "$original_stow_dir" ]; then
+        export STOW_DIR="$original_stow_dir"
+    else
+        unset STOW_DIR
+    fi
+    
     [ "$PACKAGE_MIN_VERSION" = "5.2.0" ]
     [ "$PACKAGE_MAX_VERSION" = "5.3.0" ]
 }
@@ -382,8 +410,10 @@ EOF
         skip "yq not available for testing"
     fi
     
-    # Create test packages.yaml
-    local test_yaml="$STOW_DIR/brew/packages.yaml"
+    # Create test packages.yaml in test temp directory
+    # Function expects $STOW_DIR/brew/packages.yaml, so create that structure
+    local test_stow_dir="$BATS_TEST_TMPDIR/test_stow"
+    local test_yaml="$test_stow_dir/brew/packages.yaml"
     mkdir -p "$(dirname "$test_yaml")"
     cat > "$test_yaml" <<EOF
 packages:
@@ -392,7 +422,19 @@ packages:
     min_version: "5.2"
 EOF
     
+    # Temporarily override STOW_DIR to point to test temp directory
+    local original_stow_dir="${STOW_DIR:-}"
+    export STOW_DIR="$test_stow_dir"
+    
     get_package_version_constraints "bash" "brew"
+    
+    # Restore original STOW_DIR
+    if [ -n "$original_stow_dir" ]; then
+        export STOW_DIR="$original_stow_dir"
+    else
+        unset STOW_DIR
+    fi
+    
     [ "$PACKAGE_MIN_VERSION" = "5.2" ]
 }
 

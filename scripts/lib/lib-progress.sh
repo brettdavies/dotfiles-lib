@@ -25,13 +25,30 @@ PROGRESS_CURRENT=0
 # Returns: 0 if enabled, 1 if disabled
 is_progress_enabled() {
     # Check for --no-progress flag or if output is not a terminal
-    if [ "${NO_PROGRESS:-false}" = true ]; then
+    if [ "${NO_PROGRESS:-false}" = "true" ]; then
         return 1
+    fi
+    # In test environments, allow progress if NO_PROGRESS is explicitly false
+    # even if stdout is not a terminal
+    if [ "${NO_PROGRESS:-}" = "false" ]; then
+        return 0
     fi
     if [ ! -t 1 ]; then
         return 1  # Not a terminal
     fi
     return 0
+}
+
+# Send OSC 7 escape sequence (current directory reporting)
+# Format: \033]7;file://hostname/path\033\\
+# Usage: _send_osc7_directory
+_send_osc7_directory() {
+    if ! is_progress_enabled; then
+        return 0
+    fi
+    
+    local hostname="${HOSTNAME:-${HOST:-localhost}}"
+    printf '\033]7;file://%s%s\033\\' "$hostname" "$PWD" >&2
 }
 
 # Send ConEmu OSC 9;4 escape sequence
@@ -53,6 +70,9 @@ _send_progress_sequence() {
     elif [ "$progress" -gt 100 ]; then
         progress=100
     fi
+    
+    # Send OSC 7 directory update along with progress
+    _send_osc7_directory
     
     # Send escape sequence
     printf "\033]9;4;%d;%d\033\\" "$state" "$progress" >&2

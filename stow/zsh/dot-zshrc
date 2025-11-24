@@ -92,6 +92,18 @@ setopt SHARE_HISTORY
 setopt APPEND_HISTORY
 setopt EXTENDED_HISTORY
 
+# Modern history options (zsh 5.0.8+)
+# Use fcntl for history locking (better performance and reliability)
+if [[ "${ZSH_VERSION%%.*}" -ge 5 ]] && [[ "${ZSH_VERSION#*.}" =~ ^[0-9]+ ]] && [[ "${ZSH_VERSION#*.}" -ge 8 ]]; then
+    setopt HIST_FCNTL_LOCK
+fi
+
+# Better word splitting in history (zsh 5.0+)
+setopt HIST_LEX_WORDS
+
+# Don't store history command itself in history
+setopt HIST_NO_STORE
+
 # History filtering: only save successful commands (exit code 0)
 # Store commands temporarily and only add successful ones to history
 _PENDING_HIST_CMD=""
@@ -120,6 +132,14 @@ _add_successful_cmd() {
 # Add hook
 autoload -Uz add-zsh-hook
 add-zsh-hook precmd _add_successful_cmd
+
+# OSC 7 support: Report current directory to terminal (for better terminal integration)
+# This allows terminals like Ghostty to track the current working directory
+# Format: \033]7;file://hostname/path\033\\
+_precmd_osc7() {
+    printf '\033]7;file://%s%s\033\\' "${HOST:-localhost}" "$PWD"
+}
+add-zsh-hook precmd _precmd_osc7
 
 # User configuration
 
@@ -174,6 +194,16 @@ if [[ "$OSTYPE" == "darwin"* ]] && command -v brew &> /dev/null; then
         export PATH="$BREW_PREFIX/opt/libpq/bin:$PATH"
     fi
 fi
+# Load zsh modules for enhanced functionality
+# zsh/parameter: Advanced parameter expansion
+zmodload zsh/parameter 2>/dev/null
+
+# zsh/datetime: Date/time functions
+zmodload zsh/datetime 2>/dev/null
+
+# zsh/files: Built-in file operations (optional, for performance)
+zmodload -F zsh/files b:zf_ln b:zf_mkdir b:zf_rm b:zf_chmod 2>/dev/null || zmodload zsh/files 2>/dev/null
+
 # Completion configuration - optimized with caching
 # Add zsh-completions to fpath (macOS Homebrew only)
 if [[ "$OSTYPE" == "darwin"* ]] && type brew &>/dev/null; then
@@ -183,22 +213,25 @@ fi
 # Docker completions
 fpath=($HOME/.docker/completions $fpath)
 
+# Create completion cache directory if it doesn't exist
+[[ ! -d ~/.zsh/cache ]] && mkdir -p ~/.zsh/cache
+
 # Optimize compinit: only rebuild cache if needed (checks daily)
 # Use OS-agnostic stat command
 autoload -Uz compinit
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS uses stat -f
     if [[ ! -s ~/.zcompdump ]] || (( $(($(date +%s) - $(stat -f %m ~/.zcompdump 2>/dev/null || echo 0))) > 86400 )); then
-        compinit
+        compinit -d ~/.zsh/cache/zcompdump
     else
-        compinit -C
+        compinit -C -d ~/.zsh/cache/zcompdump
     fi
 else
     # Linux uses stat -c
     if [[ ! -s ~/.zcompdump ]] || (( $(($(date +%s) - $(stat -c %Y ~/.zcompdump 2>/dev/null || echo 0))) > 86400 )); then
-        compinit
+        compinit -d ~/.zsh/cache/zcompdump
     else
-        compinit -C
+        compinit -C -d ~/.zsh/cache/zcompdump
     fi
 fi
 
@@ -208,6 +241,13 @@ zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}       # Colored completion
 zstyle ':completion:*' menu select                         # Menu selection
 zstyle ':completion:*' special-dirs true                    # Complete . and ..
 zstyle ':completion:*' rehash true                          # Rehash on completion
+
+# Enable completion caching for better performance
+zstyle ':completion:*' use-cache yes
+zstyle ':completion:*' cache-path ~/.zsh/cache
+
+# Optional: Enable zsh profiling (uncomment to profile startup time)
+# zmodload zsh/zprof
 
 # UV and UVX completions (keep existing)
 eval "$(uv generate-shell-completion zsh)"

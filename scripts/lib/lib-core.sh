@@ -31,6 +31,47 @@ source "$_LIB_DIR/lib-constants.sh"
 # 2. OS detection (depends on constants)
 source "$_LIB_DIR/lib-os.sh"
 
+# Initialize feature flags after OS detection
+# These flags indicate which features are available based on shell version
+if ! is_zsh; then
+    # Bash feature flags
+    export BASH_5_2_PLUS=false
+    export BASH_5_1_PLUS=false
+    export BASH_5_0_PLUS=false
+    export BASH_4_4_PLUS=false
+    export BASH_4_3_PLUS=false
+    export BASH_4_PLUS=false
+    
+    if is_bash_5_2_plus; then
+        export BASH_5_2_PLUS=true
+        export BASH_5_1_PLUS=true
+        export BASH_5_0_PLUS=true
+        export BASH_4_4_PLUS=true
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_5_1_plus; then
+        export BASH_5_1_PLUS=true
+        export BASH_5_0_PLUS=true
+        export BASH_4_4_PLUS=true
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_5_0_plus; then
+        export BASH_5_0_PLUS=true
+        export BASH_4_4_PLUS=true
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_4_4_plus; then
+        export BASH_4_4_PLUS=true
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_4_3_plus; then
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_4_plus; then
+        export BASH_4_PLUS=true
+    fi
+fi
+
 # 3. Path utilities (depends on OS detection)
 source "$_LIB_DIR/lib-paths.sh"
 

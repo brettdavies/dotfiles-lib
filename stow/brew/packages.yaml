@@ -18,6 +18,9 @@ packages:
   #       max_version: "2.2"        # Overrides for linux platform
   bash:
     brew: bash
+    target_version: "5.3^"
+    min_version: "3.2"
+    max_version: "5.4"
     linux:
       pkg: bash
   

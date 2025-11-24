@@ -34,11 +34,16 @@ fi
 #   - SYNC_LOCAL: true if --sync-local flag is present
 #   - SYNC_MERGE: true if --merge flag is present
 #   - NO_PROGRESS: true if --no-progress flag is present
+#   - DEBUG: true if --debug flag is present
+#   - DEBUG_LOG: path to debug log file if --debug-log is specified
 # 
 # Example:
 #   parse_common_args "$@"
 #   if [ "$DRY_RUN" = true ]; then
 #       echo "Would perform action"
+#   fi
+#   if [ "$DEBUG" = true ]; then
+#       enable_debug_tracing "$DEBUG_LOG"
 #   fi
 # 
 # Note: Unknown arguments are ignored (may be handled by calling script)
@@ -48,6 +53,8 @@ parse_common_args() {
     SYNC_LOCAL=false
     SYNC_MERGE=false
     NO_PROGRESS=false
+    DEBUG=false
+    DEBUG_LOG=""
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -70,6 +77,19 @@ parse_common_args() {
             --no-progress)
                 NO_PROGRESS=true
                 shift
+                ;;
+            --debug)
+                DEBUG=true
+                shift
+                ;;
+            --debug-log)
+                if [[ -z "${2:-}" ]]; then
+                    echo -e "${RED}Error: --debug-log requires a filename${NC}" >&2
+                    exit 1
+                fi
+                DEBUG=true
+                DEBUG_LOG="$2"
+                shift 2
                 ;;
             *)
                 # Unknown argument, ignore (might be from parent script or script-specific)

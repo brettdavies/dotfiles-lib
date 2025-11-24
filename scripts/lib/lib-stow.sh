@@ -89,17 +89,31 @@ transform_dotfiles_path() {
 # Returns: normalized absolute path via echo
 normalize_path() {
     local path="$1"
-    local base_dir
     local normalized
+    
+    # Handle special cases: . and ..
+    if [ "$path" = "." ]; then
+        normalized="$(pwd)"
+        echo "$normalized"
+        return 0
+    fi
+    
+    if [ "$path" = ".." ]; then
+        normalized="$(cd .. && pwd)"
+        echo "$normalized"
+        return 0
+    fi
     
     # If it's a relative path, resolve it
     if [[ "$path" != /* ]]; then
-        base_dir="$(cd "$(dirname "$path")" && pwd)" || return 1
+        local base_dir
+        base_dir="$(cd "$(dirname "$path")" && pwd -P 2>/dev/null || pwd)" || return 1
         path="$base_dir/$(basename "$path")"
     fi
     
-    # Normalize the path
-    normalized="$(cd "$(dirname "$path")" && pwd)/$(basename "$path")" || return 1
+    # Normalize the path (resolve any remaining .. or . components)
+    # Use pwd -P to avoid resolving symlinks (like /var -> /private/var on macOS)
+    normalized="$(cd "$(dirname "$path")" && pwd -P 2>/dev/null || pwd)/$(basename "$path")" || return 1
     echo "$normalized"
 }
 

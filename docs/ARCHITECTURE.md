@@ -286,11 +286,65 @@ Functions are:
 - `lib-filesystem.sh` caches directory listings
 - Reduces filesystem calls for repeated operations
 
+### Zsh-Specific Optimizations
+
+- **Glob Qualifiers**: Uses zsh glob patterns instead of `find` for file operations
+  - Example: `**/*.sh(.)` for regular files, `**/*(/)` for directories
+  - Significantly faster for large directory trees
+- **Built-in File Operations**: Uses `zf_*` functions from `zsh/files` module
+  - `zf_mkdir`, `zf_ln`, `zf_rm`, `zf_chmod` - faster than external commands
+- **Built-in Stat**: Uses `zstat` from `zsh/stat` module instead of external `stat`
+- **Parameter Expansion**: Uses zsh parameter expansion flags for string operations
+  - `${(s:,:)string}` for splitting, `${(j:,:)array}` for joining
+  - Faster than external `tr`, `sed`, or manual loops
+
+### Nameref Variables
+
+- Uses nameref variables (`local -n` / `typeset -n`) instead of `eval`
+- Safer and more efficient array manipulation
+- Automatic fallback to `eval` for older shells
+
+### Completion Optimization (Zsh)
+
+- Completion caching with `zstyle ':completion:*' use-cache yes`
+- Cache stored in `~/.zsh/cache`
+- Conditional `compinit` execution (only rebuilds cache when needed)
+- Lazy loading of completions
+
 ### Modern Shell Features
 
 - Uses `readarray`/`mapfile` instead of `while read` loops
 - Uses associative arrays for efficient lookups
 - Uses Bash 4+ string manipulation features
+- **Nameref Variables**: Uses `local -n` (Bash 4.3+) and `typeset -n` (zsh) for safer array manipulation
+- **Zsh Glob Qualifiers**: Uses zsh glob patterns (`**/*.sh(.)`) for faster file operations
+- **Zsh Built-ins**: Uses `zstat`, `zf_*` functions when available for better performance
+- **Parameter Expansion**: Leverages zsh parameter expansion flags for string/array operations
+- **Feature Detection**: Automatic detection of shell capabilities with graceful fallbacks
+
+### Shell Version Support
+
+The codebase includes comprehensive version detection and feature gates:
+
+**Version Detection (`lib-os.sh`):**
+
+- `get_bash_version()` - Returns major.minor version string
+- `compare_bash_version()` - Compares versions
+- `is_bash_5_2_plus()`, `is_bash_5_1_plus()`, etc. - Version checks
+- Feature flags: `BASH_5_2_PLUS`, `BASH_5_1_PLUS`, `BASH_5_0_PLUS`, etc.
+
+**Feature Detection (`lib-os.sh`):**
+
+- `has_nameref_support()` - Tests for nameref variables
+- `has_wait_n_support()` - Tests for `wait -n` (Bash 5.1+)
+- `has_xtracefd_support()` - Tests for `BASH_XTRACEFD` (Bash 5.1+)
+- `has_mapfile_null_delim()` - Tests for `mapfile -d ''` (Bash 4.4+)
+
+**Zsh Module Loading (`lib-shell.sh`):**
+
+- `load_zsh_modules()` - Conditionally loads zsh modules
+- Modules: `zsh/files`, `zsh/stat`, `zsh/datetime`, `zsh/parameter`
+- Export flags: `ZSH_FILES_LOADED`, `ZSH_STAT_LOADED`, etc.
 
 ## Cross-Platform Compatibility
 
@@ -366,6 +420,41 @@ Example:
 [WARN] [stow-packages.sh] (2024-01-15 10:30:46): Skipping binary file: .config/file.bin
 ```
 
+## Error Handling Enhancements
+
+### Modern Error Handling Features
+
+- **RETURN Trap**: Function-level cleanup and error tracking
+- **BASH_XTRACEFD**: Separated debug output (Bash 5.1+)
+- **Enhanced Error Context**: Call stack information in error messages
+  - Uses `FUNCNAME` array (Bash) or `funcfiletrace` (zsh)
+  - Includes file names and line numbers
+- **Debug Tracing**: `--debug` flag with optional log file
+- **Wait -n Support**: Wait for any background process (Bash 5.1+)
+
+### Error Reporting
+
+- `get_call_stack()` - Builds human-readable function call stack
+- Enhanced `die()` and `handle_error()` with call stack information
+- Better line number reporting using `BASH_LINENO` array
+
+## Terminal Integration
+
+### OSC Protocols
+
+- **OSC 7**: Current directory reporting for terminal integration
+  - Implemented in `.zshrc` (precmd hook) and `.bashrc` (PROMPT_COMMAND)
+  - Format: `\033]7;file://hostname/path\033\\`
+- **OSC 9;4**: Progress indicators (ConEmu protocol)
+  - Used in `lib-progress.sh` for standardized progress reporting
+
+### Ghostty Enhancements
+
+- Enhanced Ghostty configuration with modern features
+- Window title format showing current directory
+- Visual bell for better notifications
+- Shell integration enabled
+
 ## Future Enhancements
 
 ### Planned Features
@@ -374,7 +463,7 @@ Example:
 2. **Conditional Package Installation** - OS/architecture-based conditionals
 3. **Parallel Processing** - Parallel package checks and installations
 4. **Automated Testing Framework** - Comprehensive BATS test suite
-5. **Zsh-Specific Optimizations** - Better performance when running under zsh
+5. **Performance Benchmarking** - Benchmark scripts for optimization validation
 
 ## Troubleshooting
 

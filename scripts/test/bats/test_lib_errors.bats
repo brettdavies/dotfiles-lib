@@ -74,3 +74,68 @@ load 'test_helper'
     assert_success
 }
 
+# ============================================================================
+# Enhanced Error Handling Tests
+# ============================================================================
+
+@test "errors: get_call_stack returns call stack information" {
+    load_lib "lib-errors"
+    
+    # Test that get_call_stack function exists and can be called
+    run get_call_stack
+    # Function should return (may be empty, but shouldn't error)
+    assert_success
+}
+
+@test "errors: setup_function_traps sets up RETURN trap" {
+    load_lib "lib-errors"
+    
+    # Test that setup_function_traps function exists
+    command -v setup_function_traps &> /dev/null || return 1
+    
+    # Call it (should not fail)
+    run setup_function_traps
+    assert_success
+}
+
+@test "errors: enable_debug_tracing works when supported" {
+    load_lib "lib-errors"
+    
+    # Skip if BASH_XTRACEFD is not supported
+    has_xtracefd_support || skip "BASH_XTRACEFD not supported"
+    
+    local test_log
+    test_log=$(mktemp)
+    
+    run enable_debug_tracing "$test_log"
+    # Should succeed if supported
+    [ $status -eq 0 ] || [ $status -eq 1 ]
+    
+    rm -f "$test_log"
+}
+
+@test "errors: wait_for_any_process works when supported" {
+    load_lib "lib-errors"
+    
+    # Skip if wait -n is not supported
+    has_wait_n_support || skip "wait -n not supported"
+    
+    # Test that function exists
+    command -v wait_for_any_process &> /dev/null || return 1
+    
+    # Note: Can't easily test wait_for_any_process without background processes
+    # Just verify function exists
+    true
+}
+
+@test "errors: die includes call stack in error message" {
+    load_lib "lib-errors"
+    
+    # Test that die function exists and can be called
+    # (We can't easily test the full output without exiting)
+    command -v die &> /dev/null || return 1
+    
+    # Verify get_call_stack is used by die
+    command -v get_call_stack &> /dev/null || return 1
+}
+

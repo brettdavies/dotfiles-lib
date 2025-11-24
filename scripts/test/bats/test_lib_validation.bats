@@ -11,7 +11,11 @@ load 'test_helper'
 @test "validation: validate_path_within allows valid paths" {
     load_lib "lib-validation"
     
-    run validate_path_within "/base/dir" "/base/dir/file.txt"
+    # Create the base directory first (function requires it to exist)
+    local test_base="$BATS_TEST_TMPDIR/base/dir"
+    mkdir -p "$test_base"
+    
+    run validate_path_within "$test_base/file.txt" "$test_base"
     assert_success
 }
 
