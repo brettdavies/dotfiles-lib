@@ -4,10 +4,16 @@
 set -euo pipefail
 
 # Source shared libraries
-source "$(dirname "$0")/lib-core.sh"
+SCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SCRIPTS_DIR/lib/lib-core.sh"
 
 # Parse arguments
 parse_common_args "$@"
+
+¬# Setup trap handlers for cleanup and error handling
+# Initialize temporary directory for this script execution
+init_temp_dir "check-dependencies.XXXXXX" >/dev/null
+setup_traps cleanup_temp_dir
 
 # Function to install package using system package manager
 install_package() {
@@ -17,7 +23,7 @@ install_package() {
         if command -v brew &> /dev/null; then
             brew install "$package"
         else
-            echo -e "${RED}Error: Homebrew not found. Please install $package manually.${NC}"
+            err "Homebrew not found. Please install $package manually" 1
             return 1
         fi
     elif [[ "$OS" == "linux" ]]; then
@@ -46,11 +52,11 @@ install_package() {
                 sudo dnf install -y "$package"
             fi
         else
-            echo -e "${RED}Error: Package manager not found. Please install $package manually.${NC}"
+            err "Package manager not found. Please install $package manually" 1
             return 1
         fi
     else
-        echo -e "${RED}Error: Unsupported OS. Please install $package manually.${NC}"
+        err "Unsupported OS. Please install $package manually" 1
         return 1
     fi
 }
@@ -62,14 +68,14 @@ check_stow() {
             verbose_missing "GNU Stow"
             return 1  # Missing
         else
-            echo -e "${YELLOW}GNU Stow not found. Installing...${NC}"
-            install_package stow || exit 1
+            log_info "GNU Stow not found. Installing..."
+            install_package stow || die "Failed to install GNU Stow" 1
         fi
     else
         if [ "$VERBOSE" = true ]; then
             verbose_found "GNU Stow"
         elif [ "$DRY_RUN" != true ]; then
-            echo -e "${GREEN}GNU Stow found${NC}"
+            log_info "GNU Stow found"
         fi
         return 0  # Found
     fi
@@ -87,13 +93,14 @@ check_shells() {
             if [ "$DRY_RUN" = true ]; then
                 verbose_missing "zsh"
             else
-                echo -e "${YELLOW}zsh not found on macOS (unusual).${NC}"
+                warn "zsh not found on macOS (unusual)"
                 read -p "Install zsh? (y/N) " -n 1 -r
                 echo
+                log_info "User prompt: Install zsh? (response: $REPLY)"
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
-                    install_package zsh || exit 1
+                    install_package zsh || die "Failed to install zsh" 1
                 else
-                    echo -e "${YELLOW}Skipping zsh installation. Shell configs may not work.${NC}"
+                    warn "Skipping zsh installation. Shell configs may not work"
                 fi
             fi
         else
@@ -107,12 +114,15 @@ check_shells() {
                 verbose_missing "zsh"
             else
                 echo -e "${YELLOW}zsh not found. Required for oh-my-zsh.${NC}"
+            log_warn "zsh not found. Required for oh-my-zsh"
                 read -p "Install zsh? (Y/n) " -n 1 -r
                 echo
+            log_info "User prompt: Install zsh? (response: $REPLY)"
                 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
                     install_package zsh || exit 1
                 else
                     echo -e "${YELLOW}Skipping zsh installation. oh-my-zsh and zsh configs will not be set up.${NC}"
+                log_warn "Skipping zsh installation. oh-my-zsh and zsh configs will not be set up"
                 fi
             fi
         else
@@ -125,13 +135,14 @@ check_shells() {
             if [ "$DRY_RUN" = true ]; then
                 verbose_missing "bash"
             else
-                echo -e "${YELLOW}bash not found.${NC}"
+                warn "bash not found"
                 read -p "Install bash? (Y/n) " -n 1 -r
                 echo
+                log_info "User prompt: Install bash? (response: $REPLY)"
                 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-                    install_package bash || exit 1
+                    install_package bash || die "Failed to install bash" 1
                 else
-                    echo -e "${YELLOW}Skipping bash installation. Bash configs will not be set up.${NC}"
+                    warn "Skipping bash installation. Bash configs will not be set up"
                 fi
             fi
         else
@@ -154,22 +165,21 @@ check_oh_my_zsh() {
                 verbose_missing "oh-my-zsh"
                 return 1  # Missing
             else
-                echo -e "${YELLOW}oh-my-zsh not found. Installing...${NC}"
+                log_info "oh-my-zsh not found. Installing..."
                 if command -v curl &> /dev/null; then
-                    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+                    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || die "Failed to install oh-my-zsh" 1
                 elif command -v wget &> /dev/null; then
-                    sh -c "$(wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -O -)" "" --unattended
+                    sh -c "$(wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -O -)" "" --unattended || die "Failed to install oh-my-zsh" 1
                 else
-                    echo -e "${RED}Error: curl or wget required to install oh-my-zsh${NC}"
-                    exit 1
+                    die "curl or wget required to install oh-my-zsh" 1
                 fi
             fi
         else
             if [ "$DRY_RUN" = true ]; then
                 verbose_missing "oh-my-zsh" "cannot install (zsh not found)"
             else
-                echo -e "${YELLOW}zsh not installed. Skipping oh-my-zsh installation.${NC}"
-                echo -e "${YELLOW}Install zsh first if you want oh-my-zsh.${NC}"
+                warn "zsh not installed. Skipping oh-my-zsh installation"
+                warn "Install zsh first if you want oh-my-zsh"
             fi
             return 1  # Missing
         fi
@@ -177,7 +187,7 @@ check_oh_my_zsh() {
         if [ "$VERBOSE" = true ]; then
             verbose_found "oh-my-zsh"
         elif [ "$DRY_RUN" != true ]; then
-            echo -e "${GREEN}oh-my-zsh found${NC}"
+            log_info "oh-my-zsh found"
         fi
         return 0  # Found
     fi
@@ -185,9 +195,9 @@ check_oh_my_zsh() {
 
 # Main execution
 if [ "$DRY_RUN" = true ]; then
-    echo -e "${YELLOW}[DRY RUN] Checking dependencies...${NC}"
+        log_info "[DRY RUN] Checking dependencies..."
 else
-    echo -e "${GREEN}Checking dependencies...${NC}"
+        log_info "Checking dependencies..."
 fi
 
 MISSING_COUNT=0
@@ -210,9 +220,13 @@ fi
 # Summary for dry-run
 if [ "$DRY_RUN" = true ]; then
     if [ $MISSING_COUNT -eq 0 ]; then
-        echo -e "${GREEN}[DRY RUN] All dependencies satisfied${NC}"
+        log_info "[DRY RUN] All dependencies satisfied"
     else
-        echo -e "${YELLOW}[DRY RUN] Would install $MISSING_COUNT missing dependencies${NC}"
+        log_info "[DRY RUN] Would install $MISSING_COUNT missing dependencies"
+    fi
+else
+    if [ $MISSING_COUNT -eq 0 ]; then
+        log_info "All dependencies satisfied"
     fi
 fi
 

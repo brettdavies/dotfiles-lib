@@ -9,8 +9,23 @@ if [ -z "${DOTFILES_DIR:-}" ]; then
 fi
 
 # Get file permissions in a cross-platform way
-# Usage: get_file_permissions <file_path>
-# Returns: permissions as octal string (e.g., "600")
+# 
+# Purpose: Retrieves file permissions as an octal string, working on both macOS and Linux
+# 
+# Parameters:
+#   $1 - File path (required)
+# 
+# Returns: Permissions as octal string (e.g., "600", "755") via echo
+# 
+# Side effects: None
+# 
+# Example:
+#   PERMS=$(get_file_permissions ~/.secrets)
+#   if [ "$PERMS" = "600" ]; then
+#       echo "Permissions are correct"
+#   fi
+# 
+# Note: Uses stat -f on macOS and stat -c on Linux
 get_file_permissions() {
     local file="$1"
     stat -f "%OLp" "$file" 2>/dev/null || stat -c "%a" "$file" 2>/dev/null

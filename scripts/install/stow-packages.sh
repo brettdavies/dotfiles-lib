@@ -7,12 +7,19 @@
 set -euo pipefail
 
 # Source shared libraries
-source "$(dirname "$0")/lib-core.sh"
-source "$(dirname "$0")/lib-stow.sh"
-source "$(dirname "$0")/lib-sync.sh"
+SCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SCRIPTS_DIR/lib/lib-core.sh"
+source "$SCRIPTS_DIR/lib/lib-stow.sh"
+source "$SCRIPTS_DIR/lib/lib-sync.sh"
+source "$SCRIPTS_DIR/lib/lib-filesystem.sh"
 
 # Parse arguments
 parse_common_args "$@"
+
+# Initialize temporary directory for this script execution
+init_temp_dir "stow-packages.XXXXXX" >/dev/null
+# Setup trap handlers for cleanup and error handling
+setup_traps cleanup_temp_dir
 
 # Initialize sync counters
 SYNCED_FILES=0
@@ -46,7 +53,8 @@ check_conflicts_and_symlinks() {
         fi
         
         # Apply --dotfiles transformation: convert dot-* prefixes to .* prefixes
-        transformed_path=$(echo "$rel_path" | sed 's|dot-|.|g')
+        # Use Bash 4+ pattern replacement instead of sed
+        transformed_path="${rel_path//dot-/.}"
         
         # Construct target path with transformed path
         if [[ "$target" == "~" ]]; then
@@ -157,6 +165,7 @@ remove_conflicting_file() {
     
     # Regular file or directory, remove it to make way for symlink
     echo "    Removing existing: ${target_file#$HOME/}"
+    log_info "Removing existing: ${target_file#$HOME/}"
     if [ "$DRY_RUN" != true ]; then
         rm -rf "$target_file"
     fi
@@ -180,7 +189,10 @@ remove_conflicting_files() {
         
         # Validate target path is safe
         if ! is_safe_target_path "$target_file"; then
-            [[ -z "${STOW_DIR:-}" ]] && echo "    ERROR: STOW_DIR not set! Skipping to prevent accidental deletion."
+            if [[ -z "${STOW_DIR:-}" ]]; then
+                log_error "STOW_DIR not set! Skipping to prevent accidental deletion."
+                continue
+            fi
             continue
         fi
         
@@ -189,6 +201,7 @@ remove_conflicting_files() {
             # Check if already correctly symlinked
             if is_already_symlinked "$file" "$target_file"; then
                 echo "    SKIP: Already symlinked: ${target_file#$HOME/}"
+                log_info "SKIP: Already symlinked: ${target_file#$HOME/}"
                 continue
             fi
             
@@ -284,8 +297,10 @@ check_package_dry_run() {
         echo "  - $description"
     fi
     
-    # Check each file
-    while IFS= read -r -d '' file; do
+    # Use optimized find function
+    local files_array
+    find_files_array files_array "$STOW_DIR/$package" "-type f"
+    for file in "${files_array[@]}"; do
         local rel_path="${file#$STOW_DIR/$package/}"
         
         if should_skip_file "$rel_path"; then
@@ -307,7 +322,7 @@ check_package_dry_run() {
             symlink) ((pkg_symlinks++)) ;;
             done) ((pkg_already_done++)) ;;
         esac
-    done < <(find -P "$STOW_DIR/$package" -type f -print0 2>/dev/null)
+    done
     
     CONFLICTS_FOUND=$((CONFLICTS_FOUND + pkg_conflicts))
     SYMLINKS_TO_CREATE=$((SYMLINKS_TO_CREATE + pkg_symlinks))
@@ -368,7 +383,7 @@ sync_local_changes() {
         # Skip binary files
         if is_binary_file "$target_file"; then
             if [ "$VERBOSE" = true ]; then
-                echo -e "    ${YELLOW}⚠ Skipping binary file: ${target_file#$HOME/}${NC}"
+                log_warn "Skipping binary file: ${target_file#$HOME/}"
             fi
             continue
         fi
@@ -391,19 +406,20 @@ sync_local_changes() {
                 if [ "$SYNC_MERGE" = true ]; then
                     # Merge mode
                     local temp_file
-                    temp_file=$(mktemp)
+                    temp_file=$(create_temp_file "merge.XXXXXX")
                     if merge_files "$target_file" "$repo_file" "$temp_file"; then
                         # Merge successful
                         cp "$temp_file" "$repo_file"
                         echo -e "    ${GREEN}✓ Merged: ${target_file#$HOME/}${NC}"
+                        log_info "Merged: ${target_file#$HOME/}"
                         if [ "$VERBOSE" = true ]; then
                             echo "    Diff:"
                             show_file_diff "$backup_path" "$repo_file" "backup/${target_file#$HOME/}" "merged/${target_file#$HOME/}" | sed 's/^/      /'
                         fi
                     else
                         # Merge had conflicts
-                        echo -e "    ${YELLOW}⚠ Merge conflicts in: ${target_file#$HOME/}${NC}"
-                        echo "    Backup saved to: $backup_path"
+                        log_warn "Merge conflicts in: ${target_file#$HOME/}"
+                        log_info "Backup saved to: $backup_path"
                         if [ "$VERBOSE" = true ]; then
                             echo "    Diff:"
                             show_file_diff "$repo_file" "$target_file" "repo/${target_file#$HOME/}" "local/${target_file#$HOME/}" | sed 's/^/      /'
@@ -411,13 +427,15 @@ sync_local_changes() {
                         # Copy merged file with conflicts to repo (user can resolve)
                         cp "$temp_file" "$repo_file"
                     fi
-                    rm -f "$temp_file"
+                    # Note: temp_file cleanup handled by cleanup_temp_dir
                 else
                     # Overwrite mode
                     copy_to_repo "$target_file" "$repo_file"
                     echo -e "    ${GREEN}✓ Synced: ${target_file#$HOME/}${NC}"
+                    log_info "Synced: ${target_file#$HOME/}"
                     if [ "$VERBOSE" = true ]; then
                         echo "    Backup saved to: $backup_path"
+                        log_info "Backup saved to: $backup_path"
                         echo "    Diff:"
                         show_file_diff "$backup_path" "$repo_file" "backup/${target_file#$HOME/}" "synced/${target_file#$HOME/}" | sed 's/^/      /'
                     fi
@@ -454,7 +472,7 @@ sync_local_changes() {
                 # Skip binary files
                 if is_binary_file "$local_file"; then
                     if [ "$VERBOSE" = true ]; then
-                        echo -e "    ${YELLOW}⚠ Skipping binary file: ${local_file#$HOME/}${NC}"
+                        log_warn "Skipping binary file: ${local_file#$HOME/}"
                     fi
                     continue
                 fi
@@ -465,6 +483,7 @@ sync_local_changes() {
                     # Copy file to repo (with dot-* transformation)
                     copy_to_repo "$local_file" "$repo_file_path"
                     echo -e "    ${GREEN}✓ Added: ${local_file#$HOME/} -> ${repo_file_path#$STOW_DIR/}${NC}"
+                    log_info "Added: ${local_file#$HOME/} -> ${repo_file_path#$STOW_DIR/}"
                 fi
                 ((SYNCED_FILES++))
             done < <(find "$target_dir" -type f -print0 2>/dev/null)
@@ -502,6 +521,7 @@ stow_package() {
             sync_local_changes "$package" "$HOME"
         else
             echo "  - $description (syncing local changes)"
+            log_info "$description (syncing local changes)"
             sync_local_changes "$package" "$HOME"
         fi
     fi
@@ -511,11 +531,25 @@ stow_package() {
         return 0
     fi
     
+    # Validate package path before operations
+    if ! validate_repo_path "$STOW_DIR/$package"; then
+        log_error "Invalid package path: $STOW_DIR/$package"
+        return 1
+    fi
+    
+    # Initialize rollback tracking for this package
+    if [ "$ROLLBACK_INITIALIZED" != true ]; then
+        init_rollback
+    fi
+    
     # Remove conflicting files first (output goes to stdout)
     remove_conflicting_files "$STOW_DIR/$package" "$HOME"
     
     # Execute stow operation
     execute_stow "$package"
+    
+    # Record rollback operation
+    record_operation "unstow" "Unstow package $package" "cd '$STOW_DIR' && stow -D --dotfiles -t '$HOME' '$package'"
 }
 
 # Main execution
@@ -524,29 +558,43 @@ if [ "$SYNC_LOCAL" = true ]; then
     if [ "$DRY_RUN" != true ] && command -v git &> /dev/null; then
         cd "$DOTFILES_DIR" || true
         if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-            echo -e "${YELLOW}⚠ Warning: Repository has uncommitted changes${NC}"
+            warn "Repository has uncommitted changes"
             echo "  Consider committing or stashing changes before syncing"
             echo ""
         fi
     fi
     
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${YELLOW}[DRY RUN] Previewing local changes to sync...${NC}"
+        log_info "[DRY RUN] Previewing local changes to sync..."
     else
-        echo -e "${GREEN}Syncing local changes into repository...${NC}"
+        log_info "Syncing local changes into repository..."
     fi
     SYNCED_FILES=0
     SYNCED_DIRECTORIES=0
 fi
 
 if [ "$DRY_RUN" = true ]; then
-    echo -e "${YELLOW}[DRY RUN] Checking symlinks...${NC}"
+    log_info "[DRY RUN] Checking symlinks..."
     CONFLICTS_FOUND=0
     SYMLINKS_TO_CREATE=0
 else
     if [ "$SYNC_LOCAL" != true ]; then
-        echo -e "${GREEN}Creating symlinks...${NC}"
+        log_info "Creating symlinks..."
+        # Initialize rollback tracking
+        init_rollback
+        # Start progress tracking
+        progress_start "Creating symlinks for dotfiles packages..."
     fi
+fi
+
+# Count total packages for progress tracking
+local total_packages=0
+local current_package=0
+if [ "$DRY_RUN" != true ] && [ "$SYNC_LOCAL" != true ]; then
+    for pkg_dir in "$STOW_DIR"/*; do
+        [ -d "$pkg_dir" ] && [ "$(basename "$pkg_dir")" != "vscode" ] && ((total_packages++))
+    done
+    [ -d "$STOW_DIR/vscode" ] && ((total_packages++))
 fi
 
 # Shell configs
@@ -558,8 +606,13 @@ else
     output_bash=$(stow_package bash 2>&1)
     if [ -n "${output_zsh// }" ] || [ -n "${output_bash// }" ]; then
         echo "  - Shell configs (zsh, bash)"
-        [ -n "${output_zsh// }" ] && echo "$output_zsh"
-        [ -n "${output_bash// }" ] && echo "$output_bash"
+        log_info "Shell configs (zsh, bash)"
+        [ -n "${output_zsh// }" ] && echo "$output_zsh" && log_info "$output_zsh"
+        [ -n "${output_bash// }" ] && echo "$output_bash" && log_info "$output_bash"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -570,7 +623,13 @@ else
     output=$(stow_package git 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - Git configs"
+        log_info "Git configs"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -581,7 +640,13 @@ else
     output=$(stow_package ssh 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - SSH config"
+        log_info "SSH config"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -592,7 +657,13 @@ else
     output=$(stow_package ghostty 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - Terminal configs (ghostty)"
+        log_info "Terminal configs (ghostty)"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -603,7 +674,13 @@ else
     output=$(stow_package gh 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - GitHub CLI configs"
+        log_info "GitHub CLI configs"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -614,7 +691,13 @@ else
     output=$(stow_package oh-my-zsh 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - oh-my-zsh customizations"
+        log_info "oh-my-zsh customizations"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -625,7 +708,13 @@ else
     output=$(stow_package local 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - Local bin configs"
+        log_info "Local bin configs"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -636,7 +725,13 @@ else
     output=$(stow_package claude 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - Claude IDE configs"
+        log_info "Claude IDE configs"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -647,7 +742,13 @@ else
     output=$(stow_package codex 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - Codex configs"
+        log_info "Codex configs"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -658,7 +759,13 @@ else
     output=$(stow_package cursor 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - Cursor configs"
+        log_info "Cursor configs"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -669,7 +776,13 @@ else
     output=$(stow_package opencode 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - OpenCode configs"
+        log_info "OpenCode configs"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -680,7 +793,13 @@ else
     output=$(stow_package telemetry 2>&1)
     if [ -n "${output// }" ]; then
         echo "  - Telemetry settings"
+        log_info "Telemetry settings"
         echo "$output"
+        log_info "$output"
+    fi
+    if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
+        ((current_package++))
+        progress_update_item "$current_package" "$total_packages" "Stowing package %d of %d..."
     fi
 fi
 
@@ -720,21 +839,35 @@ if [[ "$OS" == "macos" ]]; then
                     ((CONFLICTS_FOUND++))
                     verbose_conflict "${target_file#$HOME/}" "exists (not a symlink) - would be removed"
                 fi
-            done < <(find "$STOW_DIR/vscode" -type f -print0 2>/dev/null)
+            done
+            
+            # Use optimized find for VS Code files
+            local vscode_files_array
+            find_files_array vscode_files_array "$STOW_DIR/vscode" "-type f"
+            for file in "${vscode_files_array[@]}"; do
+                local rel_path="${file#$STOW_DIR/vscode/}"
+                local target_file="$VS_CODE_DIR/$rel_path"
+                check_symlink "$target_file" "$file" "VS Code: $rel_path"
+            done
         fi
     else
         echo "  - VS Code settings"
+        log_info "VS Code settings"
         VS_CODE_DIR="$HOME/Library/Application Support/Code/User"
         if [ ! -d "$VS_CODE_DIR" ]; then
             mkdir -p "$VS_CODE_DIR"
         fi
         # Remove conflicting files
         if [ -d "$STOW_DIR/vscode" ]; then
-            find "$STOW_DIR/vscode" -type f | while read -r file; do
+            # Use optimized find for VS Code files
+            local vscode_files_array
+            find_files_array vscode_files_array "$STOW_DIR/vscode" "-type f"
+            for file in "${vscode_files_array[@]}"; do
                 rel_path="${file#$STOW_DIR/vscode/}"
                 target_file="$VS_CODE_DIR/$rel_path"
                 if [ -e "$target_file" ] && [ ! -L "$target_file" ]; then
                     echo "    Removing existing: ${target_file#$HOME/}"
+                    log_info "Removing existing: ${target_file#$HOME/}"
                     rm -rf "$target_file"
                 fi
             done
@@ -744,6 +877,7 @@ if [[ "$OS" == "macos" ]]; then
             cd "$STOW_DIR" || return 1
         else
             echo "    (VS Code config directory not found, skipping)"
+            log_info "VS Code config directory not found, skipping"
         fi
     fi
 fi
@@ -753,16 +887,16 @@ if [ "$SYNC_LOCAL" = true ]; then
     echo ""
     if [ "$DRY_RUN" = true ]; then
         if [ $SYNCED_FILES -gt 0 ]; then
-            echo -e "${YELLOW}[DRY RUN] Would sync $SYNCED_FILES file(s)${NC}"
+            log_info "[DRY RUN] Would sync $SYNCED_FILES file(s)"
         else
-            echo -e "${GREEN}[DRY RUN] No files to sync${NC}"
+            log_info "[DRY RUN] No files to sync"
         fi
     else
         if [ $SYNCED_FILES -gt 0 ]; then
-            echo -e "${GREEN}✓ Synced $SYNCED_FILES file(s) into repository${NC}"
-            echo -e "${YELLOW}  Note: Review changes and commit them with git${NC}"
+            log_info "Synced $SYNCED_FILES file(s) into repository"
+            warn "Note: Review changes and commit them with git"
         else
-            echo -e "${GREEN}✓ No files needed syncing${NC}"
+            log_info "No files needed syncing"
         fi
     fi
     echo ""
@@ -774,9 +908,16 @@ if [ "$DRY_RUN" = true ]; then
         echo ""
     fi
     if [ $CONFLICTS_FOUND -gt 0 ]; then
-        echo -e "${YELLOW}[DRY RUN] Would create $SYMLINKS_TO_CREATE symlinks, remove $CONFLICTS_FOUND conflicting files${NC}"
+        log_info "[DRY RUN] Would create $SYMLINKS_TO_CREATE symlinks, remove $CONFLICTS_FOUND conflicting files"
     else
-        echo -e "${GREEN}[DRY RUN] Would create $SYMLINKS_TO_CREATE symlinks${NC}"
+        log_info "[DRY RUN] Would create $SYMLINKS_TO_CREATE symlinks"
+    fi
+elif [ "$SYNC_LOCAL" != true ]; then
+    # Complete progress and finalize rollback
+    progress_complete "Symlink creation complete"
+    if [ "$ROLLBACK_INITIALIZED" = true ]; then
+        finalize_rollback
+        log_info "Rollback script saved to: $ROLLBACK_SCRIPT"
     fi
 fi
 

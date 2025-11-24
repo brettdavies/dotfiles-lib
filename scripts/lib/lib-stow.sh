@@ -56,7 +56,8 @@ is_parent_dir_symlinked() {
     while [[ "$check_dir" != "$HOME" ]] && [[ "$check_dir" != "/" ]]; do
         # Check if this directory should be symlinked (exists in stow package)
         local dir_rel_path="${check_dir#$HOME/}"
-        local dir_in_stow=$(echo "$dir_rel_path" | sed 's|\.|dot-|g')
+        # Use Bash 4+ pattern replacement instead of sed
+        local dir_in_stow="${dir_rel_path//./dot-}"
         local expected_stow_dir="$STOW_DIR/$package/$dir_in_stow"
         
         # Check if directory exists in stow and if target is symlinked to it
@@ -76,9 +77,11 @@ is_parent_dir_symlinked() {
 # Transform dotfiles path (dot-* -> .*)
 # Usage: transform_dotfiles_path <relative_path>
 # Returns: transformed path via echo
+# Uses Bash 4+ pattern replacement for efficiency
 transform_dotfiles_path() {
     local rel_path="$1"
-    echo "$rel_path" | sed 's|dot-|.|g'
+    # Use Bash 4+ pattern replacement instead of sed
+    echo "${rel_path//dot-/.}"
 }
 
 # Normalize a path (resolve symlinks and make absolute)

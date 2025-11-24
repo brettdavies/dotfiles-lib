@@ -34,14 +34,18 @@ fi
 SCRIPTS_DIR="$DOTFILES_DIR/scripts"
 
 # Source shared libraries
-if [ ! -f "$SCRIPTS_DIR/lib-core.sh" ]; then
-    echo -e "\033[0;31mError: Cannot find lib-core.sh at $SCRIPTS_DIR/lib-core.sh\033[0m" >&2
+if [ ! -f "$SCRIPTS_DIR/lib/lib-core.sh" ]; then
+    err "Cannot find lib-core.sh at $SCRIPTS_DIR/lib/lib-core.sh. Check that SCRIPTS_DIR is set correctly." 1
     exit 1
 fi
-source "$SCRIPTS_DIR/lib-core.sh"
-source "$SCRIPTS_DIR/lib-stow.sh"
-source "$SCRIPTS_DIR/lib-packages.sh"
-source "$SCRIPTS_DIR/lib-file.sh"
+source "$SCRIPTS_DIR/lib/lib-core.sh"
+source "$SCRIPTS_DIR/lib/lib-stow.sh"
+source "$SCRIPTS_DIR/lib/lib-packages.sh"
+source "$SCRIPTS_DIR/lib/lib-file.sh"
+source "$SCRIPTS_DIR/lib/lib-filesystem.sh"
+
+# Initialize package status cache for performance
+init_package_cache
 
 # Additional color for this script
 BLUE='\033[0;34m'
@@ -89,7 +93,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         -o|--output)
             if [[ -z "${2:-}" ]]; then
-                echo -e "${RED}Error: --output requires a filename${NC}" >&2
+                err "--output requires a filename. Usage: --output <filename>" 1
                 show_usage
                 exit 1
             fi
@@ -97,7 +101,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         *)
-            echo -e "${RED}Error: Unknown option: $1${NC}" >&2
+            err "Unknown option: $1. Use --help for usage information." 1
             show_usage
             exit 1
             ;;
@@ -310,7 +314,38 @@ check_stow_package() {
             # No parent directory symlink, so this file should be a symlink itself
             check_symlink "$target_file" "$file" "$description: $transformed_path"
         fi
-    done < <(find "$STOW_DIR/$package" -type f -print0 2>/dev/null)
+    done
+    
+    # Use optimized find function
+    local files_array
+    find_files_array files_array "$STOW_DIR/$package" "-type f"
+    for file in "${files_array[@]}"; do
+        found_any=true
+        local rel_path="${file#$STOW_DIR/$package/}"
+        # Apply dotfiles transformation using shared function
+        local transformed_path
+        transformed_path=$(transform_dotfiles_path "$rel_path")
+        local target_file="$HOME/$transformed_path"
+        
+        # Skip .DS_Store files
+        if [[ "$(basename "$target_file")" == ".DS_Store" ]]; then
+            continue
+        fi
+        
+        # Check if any parent directory is a symlink pointing to the stow directory
+        if is_parent_dir_symlinked "$target_file" "$package"; then
+            # Parent directory is symlinked, so this file is accessible through that symlink
+            # Just verify the file exists in the stow directory
+            if [ -f "$file" ]; then
+                check_pass "$description: $transformed_path (accessible via directory symlink)"
+            else
+                check_fail "$description: $transformed_path (file missing in stow directory)"
+            fi
+        else
+            # No parent directory symlink, so this file should be a symlink itself
+            check_symlink "$target_file" "$file" "$description: $transformed_path"
+        fi
+    done
     
     if [ "$found_any" = false ]; then
         check_warn "$description (no files found in package)"
@@ -367,10 +402,10 @@ fi
 check_file_exists "$HOME/.secrets" ".secrets file exists"
 if [ -f "$HOME/.secrets" ]; then
     perms=$(get_file_permissions "$HOME/.secrets")
-    if [ "$perms" == "600" ]; then
-        check_pass ".secrets file has correct permissions (600)"
+    if [ "$perms" == "$PERM_SECRET_FILE" ]; then
+        check_pass ".secrets file has correct permissions ($PERM_SECRET_FILE)"
     else
-        check_fail ".secrets file has incorrect permissions ($perms, expected 600)"
+        check_fail ".secrets file has incorrect permissions ($perms, expected $PERM_SECRET_FILE)"
     fi
 fi
 
@@ -389,7 +424,16 @@ if [[ "$OS" == "macos" ]]; then
                 rel_path="${file#$STOW_DIR/vscode/}"
                 target_file="$VS_CODE_DIR/$rel_path"
                 check_symlink "$target_file" "$file" "VS Code: $rel_path"
-            done < <(find "$STOW_DIR/vscode" -type f -print0 2>/dev/null)
+            done
+            
+            # Use optimized find for VS Code files
+            local vscode_files_array
+            find_files_array vscode_files_array "$STOW_DIR/vscode" "-type f"
+            for file in "${vscode_files_array[@]}"; do
+                rel_path="${file#$STOW_DIR/vscode/}"
+                target_file="$VS_CODE_DIR/$rel_path"
+                check_symlink "$target_file" "$file" "VS Code: $rel_path"
+            done
         else
             check_warn "VS Code config package not found in repo"
         fi
@@ -409,7 +453,9 @@ if [[ "$OS" == "macos" ]]; then
     if command -v brew &> /dev/null; then
         # Read Brewfile and check each package
         if [ -f "$STOW_DIR/brew/Brewfile" ]; then
-            while IFS= read -r line || [ -n "$line" ]; do
+            local brewfile_lines
+            readarray -t brewfile_lines < "$STOW_DIR/brew/Brewfile" 2>/dev/null || true
+            for line in "${brewfile_lines[@]}"; do
                 # Skip comments and empty lines
                 [[ "$line" =~ ^[[:space:]]*# ]] && continue
                 [[ -z "${line// }" ]] && continue
@@ -464,7 +510,7 @@ if [[ "$OS" == "macos" ]]; then
                         check_fail "Homebrew tap: $tap (not installed)"
                     fi
                 fi
-            done < "$STOW_DIR/brew/Brewfile"
+            done
         fi
     else
         check_warn "Homebrew not installed"
@@ -482,7 +528,9 @@ if [ -f "$STOW_DIR/cursor/extensions.txt" ]; then
     cursor_cmd=$(get_cursor_command)
     
     if [ -n "$cursor_cmd" ]; then
-        while IFS= read -r extension || [ -n "$extension" ]; do
+        local extensions_array
+        readarray -t extensions_array < "$STOW_DIR/cursor/extensions.txt" 2>/dev/null || true
+        for extension in "${extensions_array[@]}"; do
             # Skip empty lines and comments
             [[ "$extension" =~ ^[[:space:]]*# ]] && continue
             [[ -z "${extension// }" ]] && continue
@@ -495,7 +543,7 @@ if [ -f "$STOW_DIR/cursor/extensions.txt" ]; then
             else
                 check_fail "Cursor extension: $extension (not installed)"
             fi
-        done < "$STOW_DIR/cursor/extensions.txt"
+        done
     else
         check_warn "Cursor not found (extensions cannot be checked)"
     fi

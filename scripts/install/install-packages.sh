@@ -9,11 +9,20 @@
 set -euo pipefail
 
 # Source shared libraries
-source "$(dirname "$0")/lib-core.sh"
-source "$(dirname "$0")/lib-packages.sh"
+SCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SCRIPTS_DIR/lib/lib-core.sh"
+source "$SCRIPTS_DIR/lib/lib-packages.sh"
 
 # Parse arguments
 parse_common_args "$@"
+
+# Setup trap handlers for cleanup and error handling
+# Initialize temporary directory for this script execution
+init_temp_dir "install-packages.XXXXXX" >/dev/null
+setup_traps cleanup_temp_dir
+
+# Initialize package status cache for performance
+init_package_cache
 
 # Function to install packages based on package manager
 install_packages_via_pm() {
@@ -43,7 +52,7 @@ install_packages_via_pm() {
         # Alpine
         apk add --no-cache $packages
     else
-        echo -e "${RED}No supported package manager found${NC}"
+        err "No supported package manager found" 1
         return 1
     fi
 }
@@ -190,7 +199,9 @@ check_cursor_extensions() {
     local installed_exts
     installed_exts=$("$cursor_cmd" --list-extensions 2>/dev/null || echo "")
     
-    while IFS= read -r extension || [ -n "$extension" ]; do
+    local extensions_array
+    readarray -t extensions_array < "$cursor_ext_file" 2>/dev/null || true
+    for extension in "${extensions_array[@]}"; do
         [[ "$extension" =~ ^[[:space:]]*# ]] && continue
         [[ -z "${extension// }" ]] && continue
         
@@ -203,7 +214,7 @@ check_cursor_extensions() {
             ((missing_count++))
             verbose_would_install "Cursor extension" "$extension" >&3
         fi
-    done < "$cursor_ext_file"
+    done
     
     echo "$missing_count"
 }
@@ -224,15 +235,20 @@ check_brewfile_packages() {
     fi
     
     if ! command -v brew &> /dev/null; then
-        echo -e "${RED}Homebrew not found${NC}"
+        log_warn "Homebrew not found"
         return 0
     fi
+    
+    # Start progress tracking
+    progress_start "Installing packages from Brewfile..."
     
     # Save stderr to fd 3, redirect verbose output there
     exec 3>&2
     
     # Parse Brewfile
-    while IFS= read -r line || [ -n "$line" ]; do
+    local brewfile_lines
+    readarray -t brewfile_lines < "$STOW_DIR/brew/Brewfile" 2>/dev/null || true
+    for line in "${brewfile_lines[@]}"; do
         local result
         result=$(parse_brewfile_line "$line" 2>&3)
         [[ -z "$result" ]] && continue
@@ -247,7 +263,7 @@ check_brewfile_packages() {
             extension:installed) ((installed_exts++)) ;;
             extension:missing) ((missing_exts++)) ;;
         esac
-    done < "$STOW_DIR/brew/Brewfile"
+    done
     
     # Check Cursor extensions separately
     # Note: verbose output from check_cursor_extensions goes to fd 3 (stderr)
@@ -261,10 +277,19 @@ check_brewfile_packages() {
     # Summary
     local total_installed=$((installed_taps + installed_count + installed_casks + installed_exts))
     local total_missing=$((missing_taps + missing_count + missing_casks + missing_exts))
+    local total=$((total_installed + total_missing))
     
-    echo -e "${GREEN}[DRY RUN] $total_installed packages already installed, $total_missing packages would be installed${NC}"
+    # Update progress
+    if [ "$total" -gt 0 ]; then
+        local progress
+        progress=$(calculate_progress "$total_installed" "$total")
+        progress_update "$progress" "Checked $total_installed of $total packages"
+    fi
+    
+    log_info "[DRY RUN] $total_installed packages already installed, $total_missing packages would be installed"
     if [ "$VERBOSE" != true ]; then
-        echo -e "${GREEN}  (Use --verbose to see details)${NC}"
+        echo "  (Use --verbose to see details)"
+        log_info "(Use --verbose to see details)"
     fi
 }
 
@@ -276,15 +301,15 @@ install_macos_packages() {
     
     if ! command -v brew &> /dev/null; then
         if [ "$DRY_RUN" = true ]; then
-            echo -e "${RED}[DRY RUN] Homebrew not found${NC}"
+            log_warn "[DRY RUN] Homebrew not found"
         else
-            echo -e "${RED}Homebrew not found, skipping package installation${NC}"
+            log_warn "Homebrew not found, skipping package installation"
         fi
         return 0
     fi
     
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${YELLOW}[DRY RUN] Checking packages from Brewfile...${NC}"
+        log_info "[DRY RUN] Checking packages from Brewfile..."
         check_brewfile_packages
         return 0
     fi
@@ -292,22 +317,30 @@ install_macos_packages() {
     echo ""
     read -p "Install packages from Brewfile? (y/N) " -n 1 -r
     echo
+    log_info "User prompt: Install packages from Brewfile? (response: $REPLY)"
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Skipping package installation${NC}"
+        log_info "Skipping package installation"
         return 0
     fi
     
-    echo -e "${GREEN}Installing packages via Homebrew...${NC}"
+    log_info "Installing packages via Homebrew..."
+    progress_start "Installing packages from Brewfile..."
     brew bundle --file="$STOW_DIR/brew/Brewfile"
+    progress_complete "Package installation complete"
     
     # Ask about optional packages
     if [ -f "$STOW_DIR/brew/Brewfile.optional" ]; then
         echo ""
         read -p "Install optional packages from Brewfile.optional? (y/N) " -n 1 -r
         echo
+        log_info "User prompt: Install optional packages from Brewfile.optional? (response: $REPLY)"
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${GREEN}Installing optional packages...${NC}"
+            log_info "Installing optional packages..."
+            progress_start "Installing optional packages..."
             brew bundle --file="$STOW_DIR/brew/Brewfile.optional"
+            progress_complete "Optional package installation complete"
+        else
+            log_info "Skipping optional package installation"
         fi
     fi
     
@@ -319,6 +352,7 @@ install_macos_packages() {
     # 2. They need to be linked to oh-my-zsh's custom directory structure
     # 3. Stow cannot manage symlinks to external package locations
     echo "  - Setting up oh-my-zsh plugin/theme symlinks"
+    log_info "Setting up oh-my-zsh plugin/theme symlinks"
     OH_MY_ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
     BREW_SHARE="$(brew --prefix)/share"
     
@@ -328,6 +362,7 @@ install_macos_packages() {
         if [ -d "$BREW_SHARE/$plugin" ]; then
             ln -sf "$BREW_SHARE/$plugin" "$OH_MY_ZSH_CUSTOM/plugins/$plugin" 2>/dev/null || true
             echo "    Linked plugin: $plugin"
+            log_info "Linked plugin: $plugin"
         fi
     done
     
@@ -337,6 +372,7 @@ install_macos_packages() {
         if [ -d "$BREW_SHARE/$theme" ]; then
             ln -sf "$BREW_SHARE/$theme" "$OH_MY_ZSH_CUSTOM/themes/$theme" 2>/dev/null || true
             echo "    Linked theme: $theme"
+            log_info "Linked theme: $theme"
         fi
     done
     
@@ -352,17 +388,21 @@ install_macos_packages() {
         CURSOR_EXTENSIONS_FILE="$STOW_DIR/cursor/extensions.txt"
         if [ -n "$CURSOR_CMD" ] && [ -f "$CURSOR_EXTENSIONS_FILE" ]; then
             echo "  - Installing Cursor extensions"
-            while IFS= read -r extension || [ -n "$extension" ]; do
+            log_info "Installing Cursor extensions"
+            local cursor_exts_array
+            readarray -t cursor_exts_array < "$CURSOR_EXTENSIONS_FILE" 2>/dev/null || true
+            for extension in "${cursor_exts_array[@]}"; do
                 # Skip empty lines and comments
                 if [[ -n "$extension" && ! "$extension" =~ ^[[:space:]]*# ]]; then
                     # Remove leading/trailing whitespace
                     extension=$(echo "$extension" | xargs)
                     if [[ -n "$extension" ]]; then
                         echo "    Installing: $extension"
+                        log_info "Installing Cursor extension: $extension"
                         "$CURSOR_CMD" --install-extension "$extension" 2>/dev/null || true
                     fi
                 fi
-            done < "$CURSOR_EXTENSIONS_FILE"
+            done
         fi
     fi
 }
@@ -374,20 +414,21 @@ install_linux_packages_from_brewfile() {
     fi
     
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${YELLOW}[DRY RUN] Linux package installation would be attempted${NC}"
-        echo -e "${YELLOW}[DRY RUN] Note: Linux package mapping from Brewfile is approximate${NC}"
+        log_info "[DRY RUN] Linux package installation would be attempted"
+        log_info "[DRY RUN] Note: Linux package mapping from Brewfile is approximate"
         return 0
     fi
     
     echo ""
     read -p "Install packages from Brewfile? (y/N) " -n 1 -r
     echo
+    log_info "User prompt: Install packages from Brewfile? (response: $REPLY)"
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Skipping package installation${NC}"
+        log_info "Skipping package installation"
         return 0
     fi
     
-    echo -e "${GREEN}Installing packages via Linux package manager...${NC}"
+    log_info "Installing packages via Linux package manager..."
     
     # Install basic utilities (available in most package managers)
     install_packages_via_pm "ripgrep jq tree wget coreutils" || true
@@ -408,29 +449,30 @@ install_linux_packages_from_brewfile() {
     
     # Install GitHub CLI (gh) - may need manual installation or repo setup
     if ! command -v gh &> /dev/null; then
-        echo -e "${YELLOW}GitHub CLI (gh) not found. Install manually from: https://github.com/cli/cli/blob/trunk/docs/install_linux.md${NC}"
+        warn "GitHub CLI (gh) not found. Install manually from: https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
     fi
     
     # Install bun (recommended: use official installer)
     if ! command -v bun &> /dev/null; then
-        echo -e "${YELLOW}Installing bun...${NC}"
+        log_info "Installing bun..."
         curl -fsSL https://bun.sh/install | bash || true
     fi
     
     # Install uv (Python package installer)
     if ! command -v uv &> /dev/null; then
-        echo -e "${YELLOW}Installing uv...${NC}"
+        log_info "Installing uv..."
         curl -LsSf https://astral.sh/uv/install.sh | sh || true
     fi
     
     # Install ast-grep (may need manual installation)
     if ! command -v ast-grep &> /dev/null; then
-        echo -e "${YELLOW}ast-grep not found. Install manually from: https://github.com/ast-grep/ast-grep${NC}"
+        warn "ast-grep not found. Install manually from: https://github.com/ast-grep/ast-grep"
     fi
     
     # Install oh-my-zsh plugins and themes via git
     if [ -d "$HOME/.oh-my-zsh" ]; then
         echo "  - Setting up oh-my-zsh plugins and themes"
+        log_info "Setting up oh-my-zsh plugins and themes"
         OH_MY_ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
         mkdir -p "$OH_MY_ZSH_CUSTOM/plugins" "$OH_MY_ZSH_CUSTOM/themes"
         
@@ -438,6 +480,7 @@ install_linux_packages_from_brewfile() {
         if [ ! -d "$OH_MY_ZSH_CUSTOM/themes/powerlevel10k" ]; then
             git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$OH_MY_ZSH_CUSTOM/themes/powerlevel10k" 2>/dev/null || true
             echo "    Installed theme: powerlevel10k"
+            log_info "Installed theme: powerlevel10k"
         fi
         
         # Install plugins
@@ -455,11 +498,12 @@ install_linux_packages_from_brewfile() {
                         ;;
                 esac
                 echo "    Installed plugin: $plugin"
+                log_info "Installed plugin: $plugin"
             fi
         done
     fi
     
-    echo -e "${GREEN}Linux package installation complete${NC}"
+    log_info "Linux package installation complete"
 }
 
 # Main execution

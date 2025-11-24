@@ -1,0 +1,416 @@
+# Dotfiles Architecture Documentation
+
+This document describes the architecture, organization, and design principles of the dotfiles repository.
+
+## Overview
+
+This repository uses a modular, library-based architecture for managing dotfiles across macOS and Linux systems. The system is designed around the Single Responsibility Principle (SRP), Don't Repeat Yourself (DRY), and Small, Testable, Atomic, Reusable (STAR) principles.
+
+## Directory Structure
+
+```plaintext
+dotfiles/
+├── install.sh                    # Main orchestrator script
+├── scripts/
+│   ├── lib/                      # Shared library functions
+│   ├── install/                  # Installation scripts
+│   ├── check/                    # Verification scripts
+│   └── test/                     # Test scripts
+└── stow/                         # Stow packages (dotfile configs)
+```
+
+## Core Components
+
+### 1. Main Orchestrator (`install.sh`)
+
+The main entry point that coordinates all installation steps:
+
+1. **Dependency Checking** - Verifies and installs required tools (stow, shells, oh-my-zsh)
+2. **Package Stowing** - Creates symlinks using GNU Stow
+3. **Special Files** - Creates machine-specific files (.secrets, .lmstudio-home-pointer)
+4. **Package Installation** - Installs packages from Brewfile (optional)
+
+**Key Features:**
+
+- Supports `--dry-run`, `--verbose`, `--sync-local`, `--merge`, `--log-file`, `--no-progress`
+- Passes arguments to child scripts via array expansion
+- Sets up error handling and cleanup traps
+
+### 2. Library System (`scripts/lib/`)
+
+The library system is organized into focused, single-responsibility modules:
+
+#### Core Libraries
+
+- **`lib-core.sh`** - Foundation library
+  - OS detection
+  - Color constants
+  - Common variables (DOTFILES_DIR, STOW_DIR, SCRIPTS_DIR, OS)
+  - Argument parsing (`parse_common_args`)
+  - Verbose output helpers (`verbose_*` functions)
+  - Modern shell helpers (`read_lines_into_array`, `read_null_delimited_into_array`)
+  - Auto-sources other libraries
+
+- **`lib-errors.sh`** - Error handling
+  - Error reporting (`err`, `die`, `warn`, `info`)
+  - Trap handlers (`setup_traps`, `handle_signal`, `handle_error`)
+  - Exit code management
+
+- **`lib-logging.sh`** - Structured logging
+  - Log initialization (`init_logging`)
+  - Log functions (`log_info`, `log_warn`, `log_error`, `log_debug`)
+  - Timestamped, structured log entries
+
+#### Feature Libraries
+
+- **`lib-temp.sh`** - Temporary file management
+  - Single temporary directory per script execution
+  - Automatic cleanup on exit
+  - Secure permissions (600 for files, 700 for directories)
+
+- **`lib-filesystem.sh`** - File system operations
+  - Optimized `find` operations with directory caching
+  - Array-based file/directory listing
+  - Performance optimizations for large directory trees
+
+- **`lib-stow.sh`** - Stow operations
+  - Path transformation (dot-* <-> .*)
+  - Symlink validation
+  - Parent directory symlink checking
+
+- **`lib-packages.sh`** - Package checking
+  - Homebrew package/tap/cask checking
+  - VS Code/Cursor extension checking
+  - Package status caching for performance
+
+- **`lib-sync.sh`** - Bidirectional sync
+  - File comparison and diffing
+  - Binary file detection
+  - File merging with conflict markers
+  - Backup creation
+
+- **`lib-progress.sh`** - Progress indicators
+  - ConEmu OSC 9;4 escape sequence protocol
+  - Progress bars and spinners
+  - Item-by-item progress tracking
+
+- **`lib-validation.sh`** - Input validation
+  - Path validation and sanitization
+  - Path traversal prevention
+  - Argument validation
+
+- **`lib-rollback.sh`** - Rollback/undo
+  - Operation tracking
+  - Rollback script generation
+  - State restoration
+
+- **`lib-file.sh`** - File operations
+  - Cross-platform permission checking
+  - File metadata operations
+
+### 3. Installation Scripts (`scripts/install/`)
+
+Each script handles a single installation task:
+
+- **`check-dependencies.sh`** - Installs stow, shells, oh-my-zsh
+- **`stow-packages.sh`** - Creates symlinks for all stow packages
+- **`create-secrets.sh`** - Creates `.secrets` file with secure permissions
+- **`create-lmstudio-pointer.sh`** - Creates LM Studio pointer file
+- **`install-packages.sh`** - Installs packages from Brewfile
+
+**Common Pattern:**
+
+1. Source `lib-core.sh` (which auto-sources other libraries)
+2. Parse common arguments
+3. Initialize temporary directory
+4. Set up trap handlers
+5. Perform operations with logging
+6. Clean up on exit
+
+### 4. Verification Scripts (`scripts/check/`)
+
+- **`check-implementation.sh`** - Verifies dotfiles are fully implemented
+  - Checks dependencies
+  - Validates symlinks
+  - Verifies package installations
+  - Generates comprehensive report
+
+## Data Flow
+
+### Installation Flow
+
+```plaintext
+install.sh
+  ├── check-dependencies.sh
+  │   └── Uses: lib-core, lib-errors, lib-logging, lib-temp
+  ├── stow-packages.sh
+  │   └── Uses: lib-core, lib-stow, lib-sync, lib-filesystem, 
+  │            lib-validation, lib-rollback, lib-progress, lib-temp
+  ├── create-secrets.sh
+  │   └── Uses: lib-core, lib-file, lib-temp
+  ├── create-lmstudio-pointer.sh
+  │   └── Uses: lib-core, lib-temp
+  └── install-packages.sh
+      └── Uses: lib-core, lib-packages, lib-progress, lib-temp
+```
+
+### Library Dependencies
+
+```plaintext
+lib-core.sh (foundation)
+  ├── Auto-sources: lib-errors.sh, lib-logging.sh, lib-temp.sh,
+  │                 lib-filesystem.sh, lib-progress.sh,
+  │                 lib-validation.sh, lib-rollback.sh
+  │
+  └── Used by: All other libraries and scripts
+
+lib-errors.sh
+  └── Depends on: lib-core.sh (for colors)
+
+lib-logging.sh
+  └── Depends on: lib-core.sh (for VERBOSE flag, colors)
+
+lib-temp.sh
+  └── Depends on: lib-core.sh, lib-errors.sh
+
+lib-filesystem.sh
+  └── Depends on: lib-core.sh, lib-errors.sh
+
+lib-stow.sh
+  └── Depends on: lib-core.sh
+
+lib-packages.sh
+  └── Depends on: lib-core.sh
+
+lib-sync.sh
+  └── Depends on: lib-core.sh
+
+lib-progress.sh
+  └── Depends on: lib-core.sh
+
+lib-validation.sh
+  └── Depends on: lib-core.sh
+
+lib-rollback.sh
+  └── Depends on: lib-core.sh, lib-temp.sh, lib-logging.sh
+
+lib-file.sh
+  └── Depends on: lib-core.sh
+```
+
+## Design Principles
+
+### 1. Single Responsibility Principle (SRP)
+
+Each library file and function has one clear purpose:
+
+- `lib-errors.sh` only handles errors
+- `lib-logging.sh` only handles logging
+- `lib-temp.sh` only manages temporary files
+
+### 2. Don't Repeat Yourself (DRY)
+
+Common functionality is extracted to libraries:
+
+- Argument parsing: `parse_common_args()` in `lib-core.sh`
+- Verbose output: `verbose_*` functions in `lib-core.sh`
+- Error handling: `err()`, `die()`, `warn()` in `lib-errors.sh`
+
+### 3. Small, Testable, Atomic, Reusable (STAR)
+
+Functions are:
+
+- **Small**: Focused on a single task
+- **Testable**: Pure functions where possible, minimal side effects
+- **Atomic**: Complete operations that can't be partially executed
+- **Reusable**: Used across multiple scripts
+
+### 4. SOLID Principles
+
+- **S**ingle Responsibility: Each module has one job
+- **O**pen/Closed: Extensible through new library files
+- **L**iskov Substitution: Functions have consistent interfaces
+- **I**nterface Segregation: Minimal, focused function interfaces
+- **D**ependency Inversion: Scripts depend on abstractions (library functions)
+
+## Extension Points
+
+### Adding a New Library
+
+1. Create `scripts/lib/lib-<purpose>.sh`
+2. Source `lib-core.sh` if needed
+3. Add re-sourcing guard: `if [ -n "${LIB_<NAME>_LOADED:-}" ]; then return 0; fi`
+4. Export guard: `export LIB_<NAME>_LOADED=1`
+5. Add auto-sourcing to `lib-core.sh` if it should be available everywhere
+
+### Adding a New Installation Script
+
+1. Create `scripts/install/<script-name>.sh`
+2. Source `lib-core.sh` (which auto-sources other libraries)
+3. Use `parse_common_args "$@"` for argument handling
+4. Initialize temp directory: `init_temp_dir "script-name.XXXXXX"`
+5. Set up traps: `setup_traps cleanup_temp_dir`
+6. Use logging functions for all operations
+7. Add to `install.sh` if it should run automatically
+
+### Adding a New Stow Package
+
+1. Create `stow/<package-name>/` directory
+2. Add files with `dot-` prefix (e.g., `dot-config` → `~/.config`)
+3. Package will be automatically stowed by `stow-packages.sh`
+
+## Error Handling
+
+### Error Propagation
+
+1. Functions return exit codes (0 = success, non-zero = failure)
+2. Critical errors use `die()` which exits the script
+3. Warnings use `warn()` which logs but continues
+4. All errors are logged when `--log-file` is used
+
+### Cleanup
+
+- Temporary directories are automatically cleaned up on exit via trap handlers
+- Rollback scripts are generated for destructive operations
+- Error context is preserved in logs
+
+## Performance Optimizations
+
+### Package Status Caching
+
+- `lib-packages.sh` caches package installation status in associative arrays
+- Reduces redundant `brew list` calls by 10-100x for large package lists
+
+### Directory Caching
+
+- `lib-filesystem.sh` caches directory listings
+- Reduces filesystem calls for repeated operations
+
+### Modern Shell Features
+
+- Uses `readarray`/`mapfile` instead of `while read` loops
+- Uses associative arrays for efficient lookups
+- Uses Bash 4+ string manipulation features
+
+## Cross-Platform Compatibility
+
+### OS Detection
+
+- Detects macOS and Linux automatically
+- Uses `detect_os()` function for consistent OS identification
+
+### Path Handling
+
+- Uses `normalize_path()` for consistent path resolution
+- Handles both absolute and relative paths
+- Works with symlinks correctly
+
+### Command Availability
+
+- Checks for command availability before use
+- Provides fallbacks for missing commands
+- Uses cross-platform alternatives (e.g., `stat` with different flags)
+
+## Security Considerations
+
+### File Permissions
+
+- Secret files: 600 (read/write owner only)
+- Secret directories: 700 (read/write/execute owner only)
+- Constants defined in `lib-core.sh` for consistency
+
+### Path Validation
+
+- `lib-validation.sh` prevents path traversal attacks
+- Validates all user-provided paths
+- Sanitizes filenames before operations
+
+### Temporary Files
+
+- Created with secure permissions
+- Automatically cleaned up on exit
+- Stored in system temp directory with unique names
+
+## Testing Strategy
+
+### Unit Testing (Planned)
+
+- BATS (Bash Automated Testing System) framework
+- Tests for library functions
+- Mock external dependencies
+
+### Integration Testing
+
+- `test-in-docker.sh` - Tests full installation in Docker containers
+- `check-implementation.sh` - Verifies installation correctness
+
+## Logging
+
+### Structured Logging
+
+- Timestamped entries
+- Log levels (INFO, WARN, ERROR, DEBUG)
+- Script name included in each entry
+- Optional file logging via `--log-file`
+
+### Log Format
+
+```plaintext
+[LEVEL] [script-name] (timestamp): message
+```
+
+Example:
+
+```plaintext
+[INFO] [stow-packages.sh] (2024-01-15 10:30:45): Creating symlinks...
+[WARN] [stow-packages.sh] (2024-01-15 10:30:46): Skipping binary file: .config/file.bin
+```
+
+## Future Enhancements
+
+### Planned Features
+
+1. **Machine-Specific Overrides** - Support for `stow/local/` directory
+2. **Conditional Package Installation** - OS/architecture-based conditionals
+3. **Parallel Processing** - Parallel package checks and installations
+4. **Automated Testing Framework** - Comprehensive BATS test suite
+5. **Zsh-Specific Optimizations** - Better performance when running under zsh
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Scripts can't find libraries**
+   - Ensure `SCRIPTS_DIR` is set correctly
+   - Check that `lib-core.sh` exists at `$SCRIPTS_DIR/lib/lib-core.sh`
+
+2. **Permission errors**
+   - Check file permissions on scripts (should be executable)
+   - Verify write permissions in target directories
+
+3. **Symlink conflicts**
+   - Use `--sync-local` to merge local changes
+   - Use `--dry-run` to preview changes
+   - Check `check-implementation.sh` for detailed status
+
+4. **Package installation failures**
+   - Check `--verbose` output for details
+   - Review log file if `--log-file` was used
+   - Verify package manager is installed and working
+
+### Debug Mode
+
+- Use `--verbose` for detailed output
+- Use `--log-file` to capture all operations
+- Use `--dry-run` to preview without making changes
+
+## Contributing
+
+When contributing:
+
+1. Follow SRP, DRY, STAR, and SOLID principles
+2. Add comprehensive function documentation
+3. Use logging functions instead of `echo` for operations
+4. Initialize temp directories and set up traps
+5. Test on both macOS and Linux
+6. Update this documentation if architecture changes

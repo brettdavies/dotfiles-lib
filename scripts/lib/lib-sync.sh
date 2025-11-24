@@ -122,7 +122,7 @@ install_diffutils() {
         if command -v brew &> /dev/null; then
             brew install diffutils
         else
-            echo -e "${RED}Error: Homebrew not found. Please install diffutils manually.${NC}"
+            err "Homebrew not found. Please install diffutils manually: brew install diffutils" 1
             return 1
         fi
     elif [[ "$OS" == "linux" ]]; then
@@ -151,11 +151,11 @@ install_diffutils() {
                 sudo dnf install -y diffutils
             fi
         else
-            echo -e "${RED}Error: Package manager not found. Please install diffutils manually.${NC}"
+            err "Package manager not found. Please install diffutils manually. On Debian/Ubuntu: sudo apt-get install diffutils" 1
             return 1
         fi
     else
-        echo -e "${RED}Error: Unsupported OS. Please install diffutils manually.${NC}"
+        err "Unsupported OS. Please install diffutils manually. See your OS documentation for installation instructions." 1
         return 1
     fi
 }
@@ -229,8 +229,8 @@ check_diff3() {
     
     # Check if we're in an interactive terminal
     if [ ! -t 0 ]; then
-        echo -e "${RED}Error: Non-interactive mode detected. Cannot prompt for installation.${NC}"
-        echo -e "${YELLOW}Please install diff3 manually by running: $install_cmd${NC}"
+        err "Non-interactive mode detected. Cannot prompt for installation. Install diff3 manually or run in interactive mode." 1
+        warn "Please install diff3 manually by running: $install_cmd"
         return 1
     fi
     
@@ -242,8 +242,8 @@ check_diff3() {
             echo -e "${GREEN}diff3 installed successfully.${NC}"
             return 0
         else
-            echo -e "${RED}Failed to install diff3. Please install it manually.${NC}"
-            echo -e "${YELLOW}You can install it by running: $install_cmd${NC}"
+            err "Failed to install diff3. Please install it manually. On macOS: brew install diffutils. On Linux: sudo apt-get install diffutils" 1
+            warn "You can install it by running: $install_cmd"
             return 1
         fi
     else
@@ -272,7 +272,7 @@ merge_files() {
     
     # diff3 is required for merge operations
     if ! which diff3 &> /dev/null; then
-        echo -e "${RED}Error: diff3 is required for merge operations but is not available.${NC}" >&2
+        err "diff3 is required for merge operations but is not available" 1
         return 1
     fi
     
@@ -280,8 +280,7 @@ merge_files() {
     # If the repo file is tracked by git, use the last committed version as the base
     # Otherwise, use an empty file
     local base_file
-    base_file=$(mktemp)
-    trap "rm -f '$base_file'" EXIT
+    base_file=$(create_temp_file "merge-base.XXXXXX")
     
     # Try to get the last committed version from git if the repo is tracked
     if command -v git &> /dev/null; then
@@ -309,15 +308,14 @@ merge_files() {
     
     # Try merge
     if diff3 -m "$local_file" "$base_file" "$repo_file" > "$output_file" 2>/dev/null; then
-        rm -f "$base_file"
         # Check if output contains conflict markers
         if grep -q "^<<<<<<< " "$output_file" 2>/dev/null; then
             return 1  # Conflicts found
         fi
         return 0  # Merge successful
     else
-        rm -f "$base_file"
         return 1  # Merge failed
     fi
+    # Note: base_file cleanup is handled by cleanup_temp_dir via trap
 }
 

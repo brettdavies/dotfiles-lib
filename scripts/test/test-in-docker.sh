@@ -15,7 +15,8 @@
 set -e
 
 # Source shared libraries
-source "$(dirname "$0")/lib-core.sh"
+SCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SCRIPTS_DIR/lib/lib-core.sh"
 
 echo -e "${GREEN}=== Testing dotfiles install script ===${NC}"
 echo ""
@@ -55,7 +56,7 @@ echo -e "${YELLOW}Running comprehensive implementation check...${NC}"
 echo ""
 
 # Run check-implementation.sh and capture exit code
-if bash "$SCRIPTS_DIR/check-implementation.sh" --quiet; then
+if bash "$SCRIPTS_DIR/check/check-implementation.sh" --quiet; then
     echo ""
     echo -e "${GREEN}✓ All tests passed!${NC}"
     exit 0
