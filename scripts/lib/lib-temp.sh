@@ -62,8 +62,12 @@ init_temp_dir() {
         return 1
     fi
     
-    # Set secure permissions
-    chmod "$PERM_SECRET_DIR" "$SCRIPT_TEMP_DIR" 2>/dev/null || true
+    # Set secure permissions (use safe_chmod if available, otherwise fallback to chmod)
+    if command -v safe_chmod &> /dev/null; then
+        safe_chmod "$PERM_SECRET_DIR" "$SCRIPT_TEMP_DIR" 2>/dev/null || true
+    else
+        chmod "$PERM_SECRET_DIR" "$SCRIPT_TEMP_DIR" 2>/dev/null || true
+    fi
     
     # Register cleanup on exit
     trap "cleanup_temp_dir" EXIT
@@ -126,8 +130,12 @@ create_temp_file() {
         return 1
     fi
     
-    # Set secure permissions
-    chmod "$PERM_SECRET_FILE" "$temp_file" 2>/dev/null || true
+    # Set secure permissions (use safe_chmod if available, otherwise fallback to chmod)
+    if command -v safe_chmod &> /dev/null; then
+        safe_chmod "$PERM_SECRET_FILE" "$temp_file" 2>/dev/null || true
+    else
+        chmod "$PERM_SECRET_FILE" "$temp_file" 2>/dev/null || true
+    fi
     
     echo -n "$temp_file"
 }
@@ -163,8 +171,12 @@ create_temp_subdir() {
         return 1
     fi
     
-    # Set secure permissions
-    chmod "$PERM_SECRET_DIR" "$temp_subdir" 2>/dev/null || true
+    # Set secure permissions (use safe_chmod if available, otherwise fallback to chmod)
+    if command -v safe_chmod &> /dev/null; then
+        safe_chmod "$PERM_SECRET_DIR" "$temp_subdir" 2>/dev/null || true
+    else
+        chmod "$PERM_SECRET_DIR" "$temp_subdir" 2>/dev/null || true
+    fi
     
     echo -n "$temp_subdir"
 }
@@ -188,7 +200,12 @@ create_temp_subdir() {
 #   cleanup_temp_dir  # Manual cleanup (usually not needed)
 cleanup_temp_dir() {
     if [ -n "$SCRIPT_TEMP_DIR" ] && [ -d "$SCRIPT_TEMP_DIR" ]; then
-        rm -rf "$SCRIPT_TEMP_DIR" 2>/dev/null || true
+        # Use safe_rm if available, otherwise fallback to rm
+        if command -v safe_rm &> /dev/null; then
+            safe_rm "$SCRIPT_TEMP_DIR" "-rf" 2>/dev/null || true
+        else
+            rm -rf "$SCRIPT_TEMP_DIR" 2>/dev/null || true
+        fi
         SCRIPT_TEMP_DIR=""
     fi
 }

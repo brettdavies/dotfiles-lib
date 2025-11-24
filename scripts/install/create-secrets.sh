@@ -51,5 +51,10 @@ else
     fi
     
     # Always enforce correct permissions (even if file pre-existed)
-    chmod "$PERM_SECRET_FILE" ~/.secrets
+    # Use safe_chmod if available, otherwise fallback to chmod
+    if command -v safe_chmod &> /dev/null; then
+        safe_chmod "$PERM_SECRET_FILE" ~/.secrets || chmod "$PERM_SECRET_FILE" ~/.secrets
+    else
+        chmod "$PERM_SECRET_FILE" ~/.secrets
+    fi
 fi

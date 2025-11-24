@@ -85,7 +85,13 @@ die() {
         fi
     fi
     
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    local timestamp
+    if command -v get_timestamp &> /dev/null; then
+        timestamp=$(get_timestamp)
+    else
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
     local call_stack
     call_stack=$(get_call_stack)
     
@@ -104,7 +110,13 @@ die() {
 warn() {
     local message="$1"
     local script_name="${0##*/}"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    local timestamp
+    if command -v get_timestamp &> /dev/null; then
+        timestamp=$(get_timestamp)
+    else
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
     echo -e "${YELLOW}Warning [$script_name] ($timestamp): $message${NC}" >&2
 }
 
@@ -114,7 +126,13 @@ warn() {
 info() {
     local message="$1"
     local script_name="${0##*/}"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    local timestamp
+    if command -v get_timestamp &> /dev/null; then
+        timestamp=$(get_timestamp)
+    else
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
     echo -e "${GREEN}Info [$script_name] ($timestamp): $message${NC}"
 }
 

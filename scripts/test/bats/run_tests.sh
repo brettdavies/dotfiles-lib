@@ -21,6 +21,15 @@ TEST_DIR="$SCRIPT_DIR"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RESULTS_DIR="$REPO_ROOT/scripts/test/results"
 
+# Source lib-shell.sh for datetime helpers (if available)
+if [ -f "$REPO_ROOT/scripts/lib/lib-shell.sh" ]; then
+    # Source lib-os.sh first (required by lib-shell.sh)
+    if [ -f "$REPO_ROOT/scripts/lib/lib-os.sh" ]; then
+        source "$REPO_ROOT/scripts/lib/lib-os.sh" 2>/dev/null || true
+    fi
+    source "$REPO_ROOT/scripts/lib/lib-shell.sh" 2>/dev/null || true
+fi
+
 # Ensure results directory exists
 mkdir -p "$RESULTS_DIR"
 
@@ -106,7 +115,12 @@ SHELL_NAME=$(echo "$SHELL_INFO" | cut -d' ' -f1)
 SHELL_VERSION=$(echo "$SHELL_INFO" | cut -d' ' -f2)
 
 # Get epoch timestamp for uniqueness and sorting
-TIMESTAMP=$(date +%s)
+# Use get_epoch_timestamp if available (from lib-shell.sh), otherwise fallback to date
+if command -v get_epoch_timestamp &> /dev/null; then
+    TIMESTAMP=$(get_epoch_timestamp)
+else
+    TIMESTAMP=$(date +%s)
+fi
 
 # Generate standardized result filename: {shell}-{version}-test-results-{epoch}.txt
 # Example: bash-5.3.3-test-results-1700832000.txt, zsh-5.9.0-test-results-1700832000.txt
@@ -134,7 +148,14 @@ TEMP_OUTPUT=$(mktemp)
 trap "rm -f '$TEMP_OUTPUT'" EXIT
 
 {
-    echo "Test run started: $(date '+%Y-%m-%d %H:%M:%S')"
+    # Use get_timestamp if available, otherwise fallback to date
+    local start_time
+    if command -v get_timestamp &> /dev/null; then
+        start_time=$(get_timestamp)
+    else
+        start_time=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
+    echo "Test run started: $start_time"
     echo "Shell: $SHELL_NAME $SHELL_VERSION"
     echo "Test files: ${TEST_FILES[*]}"
     echo "---"
@@ -146,7 +167,14 @@ trap "rm -f '$TEMP_OUTPUT'" EXIT
     
     echo ""
     echo "---"
-    echo "Test run completed: $(date '+%Y-%m-%d %H:%M:%S')"
+    # Use get_timestamp if available, otherwise fallback to date
+    local end_time
+    if command -v get_timestamp &> /dev/null; then
+        end_time=$(get_timestamp)
+    else
+        end_time=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
+    echo "Test run completed: $end_time"
     echo "Exit code: $TEST_EXIT_CODE"
 } > "$TEMP_OUTPUT" 2>&1
 

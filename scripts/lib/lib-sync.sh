@@ -84,7 +84,12 @@ copy_to_repo() {
     # Create parent directory if needed
     local repo_dir
     repo_dir=$(dirname "$repo_file")
-    mkdir -p "$repo_dir"
+    # Use safe_mkdir if available, otherwise fallback to mkdir
+    if command -v safe_mkdir &> /dev/null; then
+        safe_mkdir "$repo_dir" "-p" || return 1
+    else
+        mkdir -p "$repo_dir" || return 1
+    fi
     
     # Copy file
     cp "$local_file" "$repo_file"
@@ -106,7 +111,12 @@ create_file_backup() {
     local backup_path="$backup_dir/$rel_path.$timestamp"
     
     # Create backup directory structure
-    mkdir -p "$(dirname "$backup_path")"
+    # Use safe_mkdir if available, otherwise fallback to mkdir
+    if command -v safe_mkdir &> /dev/null; then
+        safe_mkdir "$(dirname "$backup_path")" "-p" || return 1
+    else
+        mkdir -p "$(dirname "$backup_path")" || return 1
+    fi
     
     # Copy file to backup
     cp "$file" "$backup_path"

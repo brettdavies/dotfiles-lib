@@ -21,13 +21,13 @@ fi
 # Load zsh modules for enhanced functionality
 # 
 # Purpose: Conditionally loads zsh modules that provide built-in functionality
-#   for better performance and features
+#   for better performance and features. Respects modules already loaded in .zshrc
 # 
 # Parameters: None
 # 
 # Returns: 0 on success, 1 if not running under zsh
 # 
-# Side effects: Loads zsh modules and sets export flags
+# Side effects: Loads zsh modules and sets export flags (only if not already set)
 # 
 # Example:
 #   load_zsh_modules
@@ -41,40 +41,54 @@ fi
 #   - zsh/datetime: Date/time functions (strftime, etc.)
 #   - zsh/parameter: Advanced parameter expansion features
 #   - zsh/mapfile: Enhanced mapfile (if available)
+# 
+# Note: Checks for existing ZSH_*_LOADED flags before loading to respect
+#   modules already loaded in .zshrc (prevents conflicts and respects user config)
 load_zsh_modules() {
     if ! is_zsh; then
         return 1
     fi
     
     # Load zsh/files module for built-in file operations
-    # Use -F flag to load specific functions only
-    if zmodload -F zsh/files b:zf_ln b:zf_mkdir b:zf_rm b:zf_chmod 2>/dev/null; then
-        export ZSH_FILES_LOADED=1
-    else
-        # Try loading the entire module if selective loading fails
-        if zmodload zsh/files 2>/dev/null; then
+    # Check if already loaded (from .zshrc) before attempting to load
+    if [ -z "${ZSH_FILES_LOADED:-}" ]; then
+        # Use -F flag to load specific functions only
+        if zmodload -F zsh/files b:zf_ln b:zf_mkdir b:zf_rm b:zf_chmod 2>/dev/null; then
             export ZSH_FILES_LOADED=1
+        else
+            # Try loading the entire module if selective loading fails
+            if zmodload zsh/files 2>/dev/null; then
+                export ZSH_FILES_LOADED=1
+            fi
         fi
     fi
     
     # Load zsh/stat module for built-in stat command
-    if zmodload zsh/stat 2>/dev/null; then
-        export ZSH_STAT_LOADED=1
+    if [ -z "${ZSH_STAT_LOADED:-}" ]; then
+        if zmodload zsh/stat 2>/dev/null; then
+            export ZSH_STAT_LOADED=1
+        fi
     fi
     
     # Load zsh/datetime module for date/time functions
-    if zmodload zsh/datetime 2>/dev/null; then
-        export ZSH_DATETIME_LOADED=1
+    if [ -z "${ZSH_DATETIME_LOADED:-}" ]; then
+        if zmodload zsh/datetime 2>/dev/null; then
+            export ZSH_DATETIME_LOADED=1
+        fi
     fi
     
     # Load zsh/parameter module for advanced parameter expansion
-    if zmodload zsh/parameter 2>/dev/null; then
-        export ZSH_PARAMETER_LOADED=1
+    if [ -z "${ZSH_PARAMETER_LOADED:-}" ]; then
+        if zmodload zsh/parameter 2>/dev/null; then
+            export ZSH_PARAMETER_LOADED=1
+        fi
     fi
     
     # Try to load zsh/mapfile (may not be available in all zsh versions)
-    if zmodload zsh/mapfile 2>/dev/null; then
-        export ZSH_MAPFILE_LOADED=1
+    if [ -z "${ZSH_MAPFILE_LOADED:-}" ]; then
+        if zmodload zsh/mapfile 2>/dev/null; then
+            export ZSH_MAPFILE_LOADED=1
+        fi
     fi
     
     return 0
@@ -506,5 +520,75 @@ lowercase_string() {
     
     # Fallback: use tr
     echo -n "$string" | tr '[:upper:]' '[:lower:]'
+}
+
+# ============================================================================
+# Date/Time Helpers
+# ============================================================================
+
+# Get formatted timestamp
+# 
+# Purpose: Returns a formatted timestamp using zsh strftime when available,
+#   falling back to external date command
+# 
+# Parameters:
+#   $1 - Format string (optional, default: '%Y-%m-%d %H:%M:%S')
+# 
+# Returns: Formatted timestamp via echo
+# 
+# Side effects: None
+# 
+# Example:
+#   timestamp=$(get_timestamp)
+#   timestamp=$(get_timestamp '%Y-%m-%d')
+# 
+# Note: Uses zsh strftime (zsh/datetime) when ZSH_DATETIME_LOADED is set,
+#   falls back to external date command otherwise
+get_timestamp() {
+    local format="${1:-%Y-%m-%d %H:%M:%S}"
+    
+    # Use zsh strftime if datetime module is loaded
+    if is_zsh && [ -n "${ZSH_DATETIME_LOADED:-}" ]; then
+        # zsh strftime(format, epoch_time) - use EPOCHSECONDS for current time
+        # EPOCHSECONDS is available when zsh/datetime is loaded
+        if [ -n "${EPOCHSECONDS:-}" ]; then
+            strftime "$format" "$EPOCHSECONDS" 2>/dev/null || {
+                # Fallback if strftime fails
+                date "+$format" 2>/dev/null || echo ""
+            }
+        else
+            # Fallback if EPOCHSECONDS not available
+            date "+$format" 2>/dev/null || echo ""
+        fi
+    else
+        # Fallback to external date command
+        date "+$format" 2>/dev/null || echo ""
+    fi
+}
+
+# Get epoch timestamp (seconds since 1970-01-01)
+# 
+# Purpose: Returns epoch timestamp using zsh datetime when available,
+#   falling back to external date command
+# 
+# Parameters: None
+# 
+# Returns: Epoch timestamp (integer) via echo
+# 
+# Side effects: None
+# 
+# Example:
+#   epoch=$(get_epoch_timestamp)
+# 
+# Note: Uses zsh EPOCHSECONDS when ZSH_DATETIME_LOADED is set,
+#   falls back to external date +%s otherwise
+get_epoch_timestamp() {
+    # Use zsh EPOCHSECONDS if datetime module is loaded
+    if is_zsh && [ -n "${ZSH_DATETIME_LOADED:-}" ]; then
+        echo -n "${EPOCHSECONDS:-$(date +%s 2>/dev/null || echo 0)}"
+    else
+        # Fallback to external date command
+        date +%s 2>/dev/null || echo "0"
+    fi
 }
 

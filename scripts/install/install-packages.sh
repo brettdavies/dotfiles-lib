@@ -483,20 +483,40 @@ install_macos_packages() {
     BREW_SHARE="$(brew --prefix)/share"
     
     # Create symlinks for plugins
-    mkdir -p "$OH_MY_ZSH_CUSTOM/plugins"
+    # Use safe_mkdir if available, otherwise fallback to mkdir
+    if command -v safe_mkdir &> /dev/null; then
+        safe_mkdir "$OH_MY_ZSH_CUSTOM/plugins" "-p" 2>/dev/null || true
+    else
+        mkdir -p "$OH_MY_ZSH_CUSTOM/plugins" 2>/dev/null || true
+    fi
     for plugin in zsh-autosuggestions zsh-syntax-highlighting zsh-completions; do
         if [ -d "$BREW_SHARE/$plugin" ]; then
-            ln -sf "$BREW_SHARE/$plugin" "$OH_MY_ZSH_CUSTOM/plugins/$plugin" 2>/dev/null || true
+            # Use safe_ln if available, otherwise fallback to ln
+            if command -v safe_ln &> /dev/null; then
+                safe_ln "-sf" "$BREW_SHARE/$plugin" "$OH_MY_ZSH_CUSTOM/plugins/$plugin" 2>/dev/null || true
+            else
+                ln -sf "$BREW_SHARE/$plugin" "$OH_MY_ZSH_CUSTOM/plugins/$plugin" 2>/dev/null || true
+            fi
             echo "    Linked plugin: $plugin"
             log_info "Linked plugin: $plugin"
         fi
     done
     
     # Create symlinks for themes
-    mkdir -p "$OH_MY_ZSH_CUSTOM/themes"
+    # Use safe_mkdir if available, otherwise fallback to mkdir
+    if command -v safe_mkdir &> /dev/null; then
+        safe_mkdir "$OH_MY_ZSH_CUSTOM/themes" "-p" 2>/dev/null || true
+    else
+        mkdir -p "$OH_MY_ZSH_CUSTOM/themes" 2>/dev/null || true
+    fi
     for theme in powerlevel10k; do
         if [ -d "$BREW_SHARE/$theme" ]; then
-            ln -sf "$BREW_SHARE/$theme" "$OH_MY_ZSH_CUSTOM/themes/$theme" 2>/dev/null || true
+            # Use safe_ln if available, otherwise fallback to ln
+            if command -v safe_ln &> /dev/null; then
+                safe_ln "-sf" "$BREW_SHARE/$theme" "$OH_MY_ZSH_CUSTOM/themes/$theme" 2>/dev/null || true
+            else
+                ln -sf "$BREW_SHARE/$theme" "$OH_MY_ZSH_CUSTOM/themes/$theme" 2>/dev/null || true
+            fi
             echo "    Linked theme: $theme"
             log_info "Linked theme: $theme"
         fi
@@ -600,7 +620,13 @@ install_linux_packages_from_brewfile() {
         echo "  - Setting up oh-my-zsh plugins and themes"
         log_info "Setting up oh-my-zsh plugins and themes"
         OH_MY_ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
-        mkdir -p "$OH_MY_ZSH_CUSTOM/plugins" "$OH_MY_ZSH_CUSTOM/themes"
+        # Use safe_mkdir if available, otherwise fallback to mkdir
+        if command -v safe_mkdir &> /dev/null; then
+            safe_mkdir "$OH_MY_ZSH_CUSTOM/plugins" "-p" 2>/dev/null || true
+            safe_mkdir "$OH_MY_ZSH_CUSTOM/themes" "-p" 2>/dev/null || true
+        else
+            mkdir -p "$OH_MY_ZSH_CUSTOM/plugins" "$OH_MY_ZSH_CUSTOM/themes" 2>/dev/null || true
+        fi
         
         # Install powerlevel10k theme
         if [ ! -d "$OH_MY_ZSH_CUSTOM/themes/powerlevel10k" ]; then

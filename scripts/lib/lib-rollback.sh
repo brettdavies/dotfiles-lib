@@ -46,7 +46,12 @@ init_rollback() {
         echo ""
     } > "$ROLLBACK_SCRIPT"
     
-    chmod +x "$ROLLBACK_SCRIPT"
+    # Use safe_chmod if available, otherwise fallback to chmod
+    if command -v safe_chmod &> /dev/null; then
+        safe_chmod "755" "$ROLLBACK_SCRIPT" 2>/dev/null || chmod +x "$ROLLBACK_SCRIPT" 2>/dev/null || true
+    else
+        chmod +x "$ROLLBACK_SCRIPT" 2>/dev/null || true
+    fi
     
     log_debug "Rollback initialized: $ROLLBACK_SCRIPT"
 }

@@ -48,7 +48,12 @@ init_logging() {
         {
             echo "=========================================="
             echo "Dotfiles Installation Log"
-            echo "Started: $(date)"
+            # Use get_timestamp if available, otherwise fallback to date
+            if command -v get_timestamp &> /dev/null; then
+                echo "Started: $(get_timestamp)"
+            else
+                echo "Started: $(date)"
+            fi
             echo "Script: ${0##*/}"
             echo "=========================================="
             echo ""
@@ -74,7 +79,13 @@ init_logging() {
 #   log_info "Creating symlink: $file"
 log_info() {
     local message="$1"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    local timestamp
+    if command -v get_timestamp &> /dev/null; then
+        timestamp=$(get_timestamp)
+    else
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
     local script_name="${0##*/}"
     local log_entry="[INFO] [$script_name] ($timestamp): $message"
     
@@ -105,7 +116,13 @@ log_info() {
 #   log_warn "Skipping binary file: $file"
 log_warn() {
     local message="$1"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    local timestamp
+    if command -v get_timestamp &> /dev/null; then
+        timestamp=$(get_timestamp)
+    else
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
     local script_name="${0##*/}"
     local log_entry="[WARN] [$script_name] ($timestamp): $message"
     
@@ -134,7 +151,13 @@ log_warn() {
 #   log_error "File not found: $file"
 log_error() {
     local message="$1"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    local timestamp
+    if command -v get_timestamp &> /dev/null; then
+        timestamp=$(get_timestamp)
+    else
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
     local script_name="${0##*/}"
     local log_entry="[ERROR] [$script_name] ($timestamp): $message"
     
@@ -163,7 +186,13 @@ log_error() {
 #   log_debug "Cache hit for package: $package"
 log_debug() {
     local message="$1"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    local timestamp
+    if command -v get_timestamp &> /dev/null; then
+        timestamp=$(get_timestamp)
+    else
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
     local script_name="${0##*/}"
     local log_entry="[DEBUG] [$script_name] ($timestamp): $message"
     

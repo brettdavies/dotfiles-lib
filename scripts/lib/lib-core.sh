@@ -101,7 +101,13 @@ if [ -z "${LIB_LOGGING_LOADED:-}" ] && [ -f "$_LIB_DIR/lib-logging.sh" ]; then
     source "$_LIB_DIR/lib-logging.sh"
 fi
 
-# Source temporary file management (after lib-errors.sh for err function)
+# Source file operations (before lib-temp.sh for safe_* wrapper functions)
+# Check if already loaded to prevent re-sourcing
+if [ -z "${LIB_FILE_LOADED:-}" ] && [ -f "$_LIB_DIR/lib-file.sh" ]; then
+    source "$_LIB_DIR/lib-file.sh"
+fi
+
+# Source temporary file management (after lib-errors.sh for err function, after lib-file.sh for safe_* functions)
 # Check if already loaded to prevent re-sourcing
 if [ -z "${LIB_TEMP_LOADED:-}" ] && [ -f "$_LIB_DIR/lib-temp.sh" ]; then
     source "$_LIB_DIR/lib-temp.sh"
