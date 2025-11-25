@@ -650,9 +650,24 @@ else
     fi
 fi
 
-# Terminal configs
+# Terminal configs (Ghostty)
+# Always stow to standard location (~/.config/ghostty/config)
+# On macOS, also create symlink to Application Support location
 if [ "$DRY_RUN" = true ]; then
     stow_package ghostty "Terminal configs (ghostty)"
+    # On macOS, also check for Application Support location
+    if [[ "$OS" == "macos" ]]; then
+        GHOSTTY_CONFIG_SOURCE="$STOW_DIR/ghostty/dot-config/ghostty/config"
+        GHOSTTY_MACOS_DIR="$HOME/Library/Application Support/com.mitchellh.ghostty"
+        GHOSTTY_CONFIG_TARGET="$GHOSTTY_MACOS_DIR/config"
+        if [ -f "$GHOSTTY_CONFIG_SOURCE" ]; then
+            status=$(check_file_dry_run "$GHOSTTY_CONFIG_SOURCE" "ghostty" "$GHOSTTY_CONFIG_TARGET")
+            case "$status" in
+                conflict) ((CONFLICTS_FOUND++)) ;;
+                symlink) ((SYMLINKS_TO_CREATE++)) ;;
+            esac
+        fi
+    fi
 else
     output=$(stow_package ghostty 2>&1)
     if [ -n "${output// }" ]; then
@@ -660,6 +675,23 @@ else
         log_info "Terminal configs (ghostty)"
         echo "$output"
         log_info "$output"
+    fi
+    # On macOS, also create symlink to Application Support location
+    if [[ "$OS" == "macos" ]]; then
+        GHOSTTY_CONFIG_SOURCE="$STOW_DIR/ghostty/dot-config/ghostty/config"
+        GHOSTTY_MACOS_DIR="$HOME/Library/Application Support/com.mitchellh.ghostty"
+        GHOSTTY_CONFIG_TARGET="$GHOSTTY_MACOS_DIR/config"
+        if [ -f "$GHOSTTY_CONFIG_SOURCE" ]; then
+            mkdir -p "$GHOSTTY_MACOS_DIR"
+            if [ -e "$GHOSTTY_CONFIG_TARGET" ] && [ ! -L "$GHOSTTY_CONFIG_TARGET" ]; then
+                remove_conflicting_file "$GHOSTTY_CONFIG_TARGET"
+            fi
+            if [ ! -L "$GHOSTTY_CONFIG_TARGET" ] || ! is_symlink_correct "$GHOSTTY_CONFIG_TARGET" "$GHOSTTY_CONFIG_SOURCE"; then
+                ln -sf "$GHOSTTY_CONFIG_SOURCE" "$GHOSTTY_CONFIG_TARGET"
+                echo "    Created symlink: ${GHOSTTY_CONFIG_TARGET#$HOME/} -> ${GHOSTTY_CONFIG_SOURCE#$STOW_DIR/}"
+                log_info "Created symlink: ${GHOSTTY_CONFIG_TARGET#$HOME/} -> ${GHOSTTY_CONFIG_SOURCE#$STOW_DIR/}"
+            fi
+        fi
     fi
     if [ "$SYNC_LOCAL" != true ] && [ "$total_packages" -gt 0 ]; then
         ((current_package++))

@@ -451,9 +451,10 @@ Example:
 ### Ghostty Enhancements
 
 - Enhanced Ghostty configuration with modern features
-- Window title format showing current directory
-- Visual bell for better notifications
-- Shell integration enabled
+- Shell integration enabled (auto-detects shell and provides enhanced terminal features)
+- Window titles are automatically set by Ghostty when shell-integration is enabled
+  - Uses OSC 7 directory reporting (implemented in `.zshrc` and `.bashrc`)
+  - Shows current directory and command information automatically
 
 ## Future Enhancements
 

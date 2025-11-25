@@ -384,6 +384,15 @@ check_stow_package "bash" "Bash configs"
 check_stow_package "git" "Git configs"
 check_stow_package "ssh" "SSH config"
 check_stow_package "ghostty" "Ghostty terminal config"
+# Check Ghostty macOS Application Support location (macOS only)
+if [[ "$OS" == "macos" ]]; then
+    GHOSTTY_MACOS_DIR="$HOME/Library/Application Support/com.mitchellh.ghostty"
+    GHOSTTY_CONFIG_SOURCE="$STOW_DIR/ghostty/dot-config/ghostty/config"
+    GHOSTTY_CONFIG_TARGET="$GHOSTTY_MACOS_DIR/config"
+    if [ -f "$GHOSTTY_CONFIG_SOURCE" ]; then
+        check_symlink "$GHOSTTY_CONFIG_TARGET" "$GHOSTTY_CONFIG_SOURCE" "Ghostty: macOS Application Support config"
+    fi
+fi
 check_stow_package "gh" "GitHub CLI config"
 check_stow_package "local" "Local bin configs"
 check_stow_package "claude" "Claude IDE config"
