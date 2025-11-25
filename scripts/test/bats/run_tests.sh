@@ -141,13 +141,13 @@ fi
 # Run BATS tests and capture output to both terminal and results file
 # Write directly to results file using tee
 
-# Use get_timestamp if available, otherwise fallback to date
+    # Use get_timestamp if available, otherwise fallback to date
 start_time=""
-if command -v get_timestamp &> /dev/null; then
-    start_time=$(get_timestamp)
-else
-    start_time=$(date '+%Y-%m-%d %H:%M:%S')
-fi
+    if command -v get_timestamp &> /dev/null; then
+        start_time=$(get_timestamp)
+    else
+        start_time=$(date '+%Y-%m-%d %H:%M:%S')
+    fi
 {
     echo "Test run started: $start_time"
     echo "Shell: $SHELL_NAME $SHELL_VERSION"

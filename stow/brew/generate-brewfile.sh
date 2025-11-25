@@ -10,13 +10,13 @@ BREWFILE="$SCRIPT_DIR/Brewfile"
 
 # Source core libraries for logging and error handling
 LIB_DIR="$SCRIPT_DIR/../../scripts/lib"
-if [ -f "$LIB_DIR/loaders/full.sh" ]; then
+if [ -f "$LIB_DIR/loaders/packages.sh" ]; then
     # Set STOW_DIR if not already set (needed by package functions)
     export STOW_DIR="${STOW_DIR:-$SCRIPT_DIR/..}"
-    source "$LIB_DIR/loaders/full.sh"
+    source "$LIB_DIR/loaders/packages.sh"
 else
-    # Fallback if full.sh not found
-    echo "Warning: loaders/full.sh not found at $LIB_DIR/loaders/full.sh" >&2
+    # Fallback if packages.sh not found
+    echo "Warning: loaders/packages.sh not found at $LIB_DIR/loaders/packages.sh" >&2
     # Note: Cannot log here since logging functions aren't available yet
 fi
 

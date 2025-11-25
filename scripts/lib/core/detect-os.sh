@@ -11,14 +11,14 @@ export LIB_DETECT_OS_LOADED=1
 
 # Source detect-shell if not already sourced (for is_bash_4_plus)
 if ! command -v is_bash_4_plus &> /dev/null; then
-    # Save and restore _LIB_DIR to avoid breaking parent loaders
+    # Save and restore _SOURCE_DIR to avoid breaking parent loaders
     _SAVED_SOURCE_DIR="${_SOURCE_DIR:-}"
     _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     source "$_SOURCE_DIR/detect-shell.sh" 2>/dev/null || true
-    if [ -n "$_SAVED_LIB_DIR" ]; then
-        _SOURCE_DIR="$_SAVED_LIB_DIR"
+    if [ -n "$_SAVED_SOURCE_DIR" ]; then
+        _SOURCE_DIR="$_SAVED_SOURCE_DIR"
     fi
-    unset _SAVED_LIB_DIR
+    unset _SAVED_SOURCE_DIR
 fi
 
 # ============================================================================

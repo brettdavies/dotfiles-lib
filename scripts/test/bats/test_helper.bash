@@ -62,6 +62,7 @@ teardown() {
 # Usage: load_lib <library_name>
 # Examples: 
 #   load_lib "full" - loads loaders/full.sh (recommended for most tests)
+#   load_lib "packages" - loads loaders/packages.sh (standard + pkg/*)
 #   load_lib "standard" - loads loaders/standard.sh
 #   load_lib "minimal" - loads loaders/minimal.sh
 #   load_lib "core/constants" - loads core/constants.sh directly
@@ -71,7 +72,7 @@ load_lib() {
     
     # Determine file path
     case "$lib_name" in
-        "full"|"standard"|"minimal")
+        "full"|"packages"|"standard"|"minimal")
             lib_file="$LIB_DIR/loaders/$lib_name.sh"
             ;;
         *)

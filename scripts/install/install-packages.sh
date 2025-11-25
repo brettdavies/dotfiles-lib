@@ -10,7 +10,7 @@ set -euo pipefail
 
 # Source shared libraries
 SCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-source "$SCRIPTS_DIR/lib/loaders/full.sh"
+source "$SCRIPTS_DIR/lib/loaders/packages.sh"
 
 # Parse arguments
 parse_common_args "$@"

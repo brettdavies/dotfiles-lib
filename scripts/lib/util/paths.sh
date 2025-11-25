@@ -33,12 +33,12 @@ fi
 #   DOTFILES_DIR=$(get_dotfiles_dir)
 #   echo "Dotfiles are in: $DOTFILES_DIR"
 # 
-# Note: Assumes this file is in dotfiles/scripts/lib/, so it goes up two levels
+# Note: Assumes this file is in dotfiles/scripts/lib/util/, so it goes up three levels
 get_dotfiles_dir() {
-    # This file is in dotfiles/scripts/lib/
-    # So we go up two levels from lib/ to get dotfiles/
+    # This file is in dotfiles/scripts/lib/util/
+    # So we go up three levels from util/ to get dotfiles/
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    echo -n "$(cd "$script_dir/../.." && pwd)"
+    echo -n "$(cd "$script_dir/../../.." && pwd)"
 }
 
 # ============================================================================
