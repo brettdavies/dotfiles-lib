@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Tests for temporary file management library
-# Tests: lib-temp.sh
+# Tests: feature/temp.sh
 
 load 'test_helper'
 
@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "temp: init_temp_dir creates temporary directory" {
-    load_lib "full"
+    load_lib "feature/temp"
     
     # Reset temp dir state for clean test
     unset SCRIPT_TEMP_DIR
@@ -21,7 +21,7 @@ load 'test_helper'
 }
 
 @test "temp: init_temp_dir sets secure permissions" {
-    load_lib "full"
+    load_lib "feature/temp"
     
     # Reset temp dir state for clean test
     unset SCRIPT_TEMP_DIR
@@ -38,7 +38,7 @@ load 'test_helper'
 }
 
 @test "temp: get_temp_dir returns existing directory" {
-    load_lib "full"
+    load_lib "feature/temp"
     
     # Reset temp dir state for clean test
     unset SCRIPT_TEMP_DIR
@@ -55,7 +55,7 @@ load 'test_helper'
 }
 
 @test "temp: get_temp_dir creates directory if not exists" {
-    load_lib "full"
+    load_lib "feature/temp"
     
     # Reset temp dir state and ensure clean state
     unset SCRIPT_TEMP_DIR
@@ -68,7 +68,7 @@ load 'test_helper'
 }
 
 @test "temp: create_temp_file creates file in temp directory" {
-    load_lib "full"
+    load_lib "feature/temp"
     
     init_temp_dir "test.XXXXXX"
     local temp_file
@@ -79,7 +79,7 @@ load 'test_helper'
 }
 
 @test "temp: create_temp_file sets secure permissions" {
-    load_lib "full"
+    load_lib "feature/temp"
     
     init_temp_dir "test.XXXXXX"
     local temp_file
@@ -91,7 +91,7 @@ load 'test_helper'
 }
 
 @test "temp: create_temp_subdir creates subdirectory" {
-    load_lib "full"
+    load_lib "feature/temp"
     
     init_temp_dir "test.XXXXXX"
     local temp_subdir
@@ -102,7 +102,7 @@ load 'test_helper'
 }
 
 @test "temp: cleanup_temp_dir removes directory" {
-    load_lib "full"
+    load_lib "feature/temp"
     
     local temp_dir
     temp_dir=$(init_temp_dir "test.XXXXXX")

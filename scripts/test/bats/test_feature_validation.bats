@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Tests for validation library
-# Tests: lib-validation.sh
+# Tests: feature/validation.sh
 
 load 'test_helper'
 
@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "validation: validate_path_within allows valid paths" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     # Create the base directory first (function requires it to exist)
     local test_base="$BATS_TEST_TMPDIR/base/dir"
@@ -20,28 +20,28 @@ load 'test_helper'
 }
 
 @test "validation: validate_path_within rejects path traversal" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     run validate_path_within "/base/dir" "/base/dir/../../etc/passwd"
     assert_failure
 }
 
 @test "validation: validate_home_path allows home directory paths" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     run validate_home_path "$HOME/.zshrc"
     assert_success
 }
 
 @test "validation: validate_home_path rejects paths outside home" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     run validate_home_path "/etc/passwd"
     assert_failure
 }
 
 @test "validation: sanitize_filename removes dangerous characters" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     run sanitize_filename "../../etc/passwd"
     assert_success
@@ -49,7 +49,7 @@ load 'test_helper'
 }
 
 @test "validation: sanitize_filename preserves safe characters" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     run sanitize_filename "my-file_123.txt"
     assert_success
@@ -57,14 +57,14 @@ load 'test_helper'
 }
 
 @test "validation: prevent_path_traversal detects traversal attempts" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     run prevent_path_traversal "../../etc/passwd"
     assert_failure
 }
 
 @test "validation: prevent_path_traversal allows safe paths" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     # prevent_path_traversal requires path and base_dir arguments
     # A relative path without .. should be safe when within base_dir
@@ -77,7 +77,7 @@ load 'test_helper'
 }
 
 @test "validation: validate_directory succeeds for existing directory" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     local test_dir="$BATS_TEST_TMPDIR/testdir"
     mkdir -p "$test_dir"
@@ -87,14 +87,14 @@ load 'test_helper'
 }
 
 @test "validation: validate_directory fails for non-existent directory" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     run validate_directory "/nonexistent/directory"
     assert_failure
 }
 
 @test "validation: validate_file succeeds for existing file" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     local test_file="$BATS_TEST_TMPDIR/test.txt"
     touch "$test_file"
@@ -104,7 +104,7 @@ load 'test_helper'
 }
 
 @test "validation: validate_file fails for non-existent file" {
-    load_lib "full"
+    load_lib "feature/validation"
     
     run validate_file "/nonexistent/file.txt"
     assert_failure
