@@ -10,27 +10,14 @@ BREWFILE="$SCRIPT_DIR/Brewfile"
 
 # Source core libraries for logging and error handling
 LIB_DIR="$SCRIPT_DIR/../../scripts/lib"
-if [ -f "$LIB_DIR/lib-core.sh" ]; then
-    source "$LIB_DIR/lib-core.sh"
-else
-    # Fallback if lib-core.sh not found
-    echo "Warning: lib-core.sh not found at $LIB_DIR/lib-core.sh" >&2
-    # Note: Cannot log here since logging functions aren't available yet
-fi
-
-# Source lib-packages.sh for version querying functions
-LIB_PACKAGES="$LIB_DIR/lib-packages.sh"
-if [ -f "$LIB_PACKAGES" ]; then
-    # Set STOW_DIR if not already set (needed by lib-packages.sh)
+if [ -f "$LIB_DIR/loaders/full.sh" ]; then
+    # Set STOW_DIR if not already set (needed by package functions)
     export STOW_DIR="${STOW_DIR:-$SCRIPT_DIR/..}"
-    source "$LIB_PACKAGES"
+    source "$LIB_DIR/loaders/full.sh"
 else
-    if command -v log_warn &> /dev/null; then
-        log_warn "lib-packages.sh not found at $LIB_PACKAGES"
-        log_warn "Version querying functions will not be available. target_version with caret syntax may not work correctly."
-    fi
-    echo "Warning: lib-packages.sh not found at $LIB_PACKAGES" >&2
-    echo "Version querying functions will not be available. target_version with caret syntax may not work correctly." >&2
+    # Fallback if full.sh not found
+    echo "Warning: loaders/full.sh not found at $LIB_DIR/loaders/full.sh" >&2
+    # Note: Cannot log here since logging functions aren't available yet
 fi
 
 if [ ! -f "$PACKAGES_YAML" ]; then

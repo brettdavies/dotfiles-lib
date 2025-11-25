@@ -1,12 +1,35 @@
 #!/usr/bin/env bash
-# File operations helper functions
-# Provides functions for file operations like getting permissions
-# Requires: lib-core.sh (for common variables)
+# File operations
+# Provides functions for file operations, permissions, and stat information
+# Requires: util/paths.sh (for OS variable), core/detect-os.sh (for is_zsh), shell/zsh-modules.sh (for ZSH_STAT_LOADED, ZSH_FILES_LOADED), core/constants.sh (for PERM_SECRET_FILE, PERM_SECRET_DIR)
 
-# Source core library if not already sourced
-if [ -z "${DOTFILES_DIR:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
+# Prevent re-sourcing
+if [ -n "${LIB_FILE_OPS_LOADED:-}" ]; then
+    return 0
 fi
+export LIB_FILE_OPS_LOADED=1
+
+# Source dependencies if not already sourced
+if [ -z "${OS:-}" ]; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../util/paths.sh" 2>/dev/null || true
+fi
+
+# Source detect-os if not already sourced
+if ! command -v is_zsh &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/detect-os.sh" 2>/dev/null || true
+fi
+
+# Source constants if not already sourced
+if [ -z "${PERM_SECRET_FILE:-}" ]; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/constants.sh" 2>/dev/null || true
+fi
+
+# ============================================================================
+# File Stat Operations
+# ============================================================================
 
 # Get file permissions in a cross-platform way
 # 
@@ -84,7 +107,7 @@ get_file_stat() {
     fi
     
     # Fallback to external stat command
-    if [[ "$OS" == "macos" ]]; then
+    if [[ "${OS:-}" == "macos" ]]; then
         case "$field" in
             size)
                 stat -f "%z" "$file" 2>/dev/null || return 1
@@ -163,9 +186,9 @@ safe_mkdir() {
 # Purpose: Creates a symlink, using zsh built-in zf_ln when available
 # 
 # Parameters:
-#   $1 - Target path (required)
-#   $2 - Link path (required)
-#   $3 - Options (e.g., "-s" for symlink, "-f" for force)
+#   $1 - Options (e.g., "-s" for symlink, "-f" for force)
+#   $2 - Target path (required)
+#   $3 - Link path (required)
 # 
 # Returns: 0 on success, 1 on failure
 # 

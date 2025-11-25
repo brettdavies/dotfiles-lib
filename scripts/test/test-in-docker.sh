@@ -16,7 +16,7 @@ set -e
 
 # Source shared libraries
 SCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-source "$SCRIPTS_DIR/lib/lib-core.sh"
+source "$SCRIPTS_DIR/lib/loaders/minimal.sh"
 
 echo -e "${GREEN}=== Testing dotfiles install script ===${NC}"
 echo ""

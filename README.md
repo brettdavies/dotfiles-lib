@@ -15,32 +15,63 @@ The installation process is modular, with `install.sh` orchestrating several sin
 
 **Shared Libraries** (`scripts/lib/`):
 
-**Core Libraries** (loaded by `lib-core.sh`):
+The library system uses a modular, layered architecture with three loader options:
 
-- `lib-core.sh` - Main orchestrator that loads all core libraries in the correct order
-- `lib-constants.sh` - Color constants and file permission constants
-- `lib-os.sh` - OS detection (macOS, Linux) and shell detection (zsh, bash)
-- `lib-paths.sh` - Path utilities and common variable initialization (DOTFILES_DIR, STOW_DIR, etc.)
-- `lib-args.sh` - Common command-line argument parsing (--dry-run, --verbose, --sync-local, etc.)
-- `lib-verbose.sh` - Standardized verbose output helpers (verbose_found, verbose_missing, etc.)
-- `lib-shell.sh` - Modern shell features (readarray/mapfile helpers with zsh optimizations)
+**Loaders** (choose based on needs):
 
-**Feature Libraries** (auto-loaded by `lib-core.sh`):
+- `loaders/minimal.sh` - Minimal loader for simple scripts (colors, basic output, argument parsing)
+- `loaders/standard.sh` - Standard loader for most install scripts (adds paths, traps, temp, logging, verbose, progress)
+- `loaders/full.sh` - Full loader with all functionality (includes package management, filesystem, domain operations)
 
-- `lib-errors.sh` - Error handling and reporting (err, die, warn, info, trap handlers)
-- `lib-logging.sh` - Structured logging system (log_info, log_warn, log_error, log_debug)
-- `lib-temp.sh` - Temporary directory management (single directory per script execution)
-- `lib-filesystem.sh` - Optimized file system operations with directory caching
-- `lib-progress.sh` - Progress indicators using ConEmu OSC 9;4 protocol
-- `lib-validation.sh` - Input validation and sanitization functions
-- `lib-rollback.sh` - Rollback/undo functionality for operations
+**Core Layer** (`core/`):
 
-**Specialized Libraries** (loaded as needed):
+- `core/constants.sh` - Color constants and file permission constants
+- `core/detect-os.sh` - OS detection (macOS, Linux)
+- `core/detect-shell.sh` - Shell detection and version checking (zsh, bash)
 
-- `lib-file.sh` - File operations and permissions
-- `lib-packages.sh` - Package checking (Homebrew, VS Code, Cursor) with status caching
-- `lib-stow.sh` - Stow-specific operations and symlink checking
-- `lib-sync.sh` - Sync operations for bidirectional updates
+**Utility Layer** (`util/`):
+
+- `util/output.sh` - Basic output functions (err, die, warn, info)
+- `util/timestamp.sh` - Timestamp generation
+- `util/paths.sh` - Path utilities and common variable initialization
+- `util/args.sh` - Common command-line argument parsing
+
+**Feature Layer** (`feature/`):
+
+- `feature/traps.sh` - Trap handlers and signal handling
+- `feature/temp.sh` - Temporary directory management
+- `feature/logging.sh` - Structured logging system
+- `feature/verbose.sh` - Standardized verbose output helpers
+- `feature/progress.sh` - Progress indicators using ConEmu OSC 9;4 protocol
+- `feature/validation.sh` - Input validation and sanitization
+- `feature/rollback.sh` - Rollback/undo functionality
+
+**Filesystem Layer** (`fs/`):
+
+- `fs/file-ops.sh` - File operations and permissions
+- `fs/find.sh` - Optimized file system operations with directory caching
+- `fs/zsh-globs.sh` - Zsh-specific glob operations
+
+**Shell Layer** (`shell/`):
+
+- `shell/zsh-modules.sh` - Zsh module loading
+- `shell/arrays.sh` - Array manipulation helpers
+- `shell/strings.sh` - String manipulation functions
+
+**Package Management Layer** (`pkg/`):
+
+- `pkg/cache.sh` - Package status caching infrastructure
+- `pkg/brew.sh` - Homebrew package/cask checking
+- `pkg/extensions.sh` - VS Code/Cursor extension checking
+- `pkg/version.sh` - Version comparison functions
+- `pkg/version-constraints.sh` - Version constraints and YAML parsing
+
+**Domain Layer** (`domain/`):
+
+- `domain/stow.sh` - Stow-specific operations and symlink checking
+- `domain/sync.sh` - Basic sync operations
+- `domain/sync-backup.sh` - Backup creation for sync operations
+- `domain/sync-merge.sh` - Merge/diff3 operations for sync
 
 **Installation Scripts** (`scripts/install/`):
 
@@ -529,12 +560,12 @@ The codebase is optimized for modern shells while maintaining backward compatibi
 
 #### Scripts can't find libraries
 
-**Error**: `Error: Cannot find lib-core.sh`
+**Error**: `Error: Cannot find loaders/full.sh` (or similar)
 
 **Solution**:
 
 - Ensure you're running scripts from the dotfiles directory
-- Check that `scripts/lib/lib-core.sh` exists
+- Check that `scripts/lib/loaders/full.sh` (or `standard.sh`/`minimal.sh`) exists
 - Verify `SCRIPTS_DIR` is set correctly in the script
 
 #### Permission errors

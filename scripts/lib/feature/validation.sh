@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Input validation and sanitization functions
 # Provides functions for validating paths, filenames, and arguments
-# Requires: lib-core.sh (for DOTFILES_DIR, HOME)
+# Requires: util/output.sh (for err), util/paths.sh (for DOTFILES_DIR, HOME)
 
 # Prevent re-sourcing
 if [ -n "${LIB_VALIDATION_LOADED:-}" ]; then
@@ -9,10 +9,16 @@ if [ -n "${LIB_VALIDATION_LOADED:-}" ]; then
 fi
 export LIB_VALIDATION_LOADED=1
 
-# Source core library if not already sourced
-# Check if DOTFILES_DIR is defined (indicates lib-core.sh has been sourced)
+# Source dependencies if not already sourced
+if ! command -v err &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../util/output.sh" 2>/dev/null || true
+fi
+
+# Source paths if not already sourced
 if [ -z "${DOTFILES_DIR:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../util/paths.sh" 2>/dev/null || true
 fi
 
 # Validate that a path is within a given directory

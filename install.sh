@@ -14,7 +14,7 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$DOTFILES_DIR/scripts"
 
 # Source shared libraries
-source "$SCRIPTS_DIR/lib/lib-core.sh"
+source "$SCRIPTS_DIR/lib/loaders/standard.sh"
 
 # Parse arguments
 DRY_RUN=false

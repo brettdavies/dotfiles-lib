@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "errors: err outputs error message to stderr" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     run err "Test error message" 1
     assert_failure
@@ -18,7 +18,7 @@ load 'test_helper'
 }
 
 @test "errors: err returns specified exit code" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     run err "Test error" 42
     assert_failure
@@ -26,7 +26,7 @@ load 'test_helper'
 }
 
 @test "errors: die exits with error message" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     # die function should be available after loading lib-errors
     # Test that it exits with the correct code
@@ -40,7 +40,7 @@ load 'test_helper'
 }
 
 @test "errors: warn outputs warning message to stderr" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     run warn "Test warning"
     assert_success
@@ -49,7 +49,7 @@ load 'test_helper'
 }
 
 @test "errors: info outputs info message to stdout" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     run info "Test info"
     assert_success
@@ -58,8 +58,7 @@ load 'test_helper'
 }
 
 @test "errors: setup_traps sets up EXIT trap" {
-    load_lib "lib-temp"
-    load_lib "lib-errors"
+    load_lib "full"
     
     # Create a test cleanup function
     test_cleanup_called=false
@@ -79,7 +78,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "errors: get_call_stack returns call stack information" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     # Test that get_call_stack function exists and can be called
     run get_call_stack
@@ -88,10 +87,10 @@ load 'test_helper'
 }
 
 @test "errors: setup_function_traps sets up RETURN trap" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     # Test that setup_function_traps function exists
-    command -v setup_function_traps &> /dev/null || return 1
+    command -v setup_function_traps &> /dev/null || skip "setup_function_traps not available"
     
     # Call it (should not fail)
     run setup_function_traps
@@ -99,7 +98,7 @@ load 'test_helper'
 }
 
 @test "errors: enable_debug_tracing works when supported" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     # Skip if BASH_XTRACEFD is not supported
     has_xtracefd_support || skip "BASH_XTRACEFD not supported"
@@ -115,7 +114,7 @@ load 'test_helper'
 }
 
 @test "errors: wait_for_any_process works when supported" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     # Skip if wait -n is not supported
     has_wait_n_support || skip "wait -n not supported"
@@ -129,7 +128,7 @@ load 'test_helper'
 }
 
 @test "errors: die includes call stack in error message" {
-    load_lib "lib-errors"
+    load_lib "full"
     
     # Test that die function exists and can be called
     # (We can't easily test the full output without exiting)

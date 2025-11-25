@@ -34,15 +34,11 @@ fi
 SCRIPTS_DIR="$DOTFILES_DIR/scripts"
 
 # Source shared libraries
-if [ ! -f "$SCRIPTS_DIR/lib/lib-core.sh" ]; then
-    err "Cannot find lib-core.sh at $SCRIPTS_DIR/lib/lib-core.sh. Check that SCRIPTS_DIR is set correctly." 1
+if [ ! -f "$SCRIPTS_DIR/lib/loaders/full.sh" ]; then
+    err "Cannot find loaders/full.sh at $SCRIPTS_DIR/lib/loaders/full.sh. Check that SCRIPTS_DIR is set correctly." 1
     exit 1
 fi
-source "$SCRIPTS_DIR/lib/lib-core.sh"
-source "$SCRIPTS_DIR/lib/lib-stow.sh"
-source "$SCRIPTS_DIR/lib/lib-packages.sh"
-source "$SCRIPTS_DIR/lib/lib-file.sh"
-source "$SCRIPTS_DIR/lib/lib-filesystem.sh"
+source "$SCRIPTS_DIR/lib/loaders/full.sh"
 
 # Initialize package status cache for performance
 init_package_cache

@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "stow: transform_dotfiles_path converts dot- to ." {
-    load_lib "lib-stow"
+    load_lib "full"
     
     run transform_dotfiles_path "dot-zshrc"
     assert_success
@@ -17,7 +17,7 @@ load 'test_helper'
 }
 
 @test "stow: transform_dotfiles_path handles nested paths" {
-    load_lib "lib-stow"
+    load_lib "full"
     
     run transform_dotfiles_path "config/dot-git/config"
     assert_success
@@ -25,30 +25,38 @@ load 'test_helper'
 }
 
 @test "stow: normalize_path resolves absolute paths" {
-    load_lib "lib-stow"
+    load_lib "full"
     
     local test_dir="$BATS_TEST_TMPDIR/test"
     mkdir -p "$test_dir"
     
+    # Get the expected resolved path (macOS resolves /var -> /private/var)
+    local expected_dir
+    expected_dir=$(cd "$test_dir" && pwd -P)
+    
     run normalize_path "$test_dir"
     assert_success
-    assert_output "$test_dir"
+    assert_output "$expected_dir"
 }
 
 @test "stow: normalize_path resolves relative paths" {
-    load_lib "lib-stow"
+    load_lib "full"
     
     local test_dir="$BATS_TEST_TMPDIR/test"
     mkdir -p "$test_dir"
     cd "$BATS_TEST_TMPDIR"
     
+    # Get the expected resolved path (macOS resolves /var -> /private/var)
+    local expected_dir
+    expected_dir=$(cd "$test_dir" && pwd -P)
+    
     run normalize_path "test"
     assert_success
-    assert_output "$test_dir"
+    assert_output "$expected_dir"
 }
 
 @test "stow: normalize_path handles . and .." {
-    load_lib "lib-stow"
+    load_lib "full"
     
     local test_dir="$BATS_TEST_TMPDIR/test"
     mkdir -p "$test_dir"
@@ -60,7 +68,7 @@ load 'test_helper'
 }
 
 @test "stow: check_dir_symlink detects directory symlink" {
-    load_lib "lib-stow"
+    load_lib "full"
     
     local target_dir="$BATS_TEST_TMPDIR/target"
     local link_dir="$BATS_TEST_TMPDIR/link"
@@ -72,17 +80,26 @@ load 'test_helper'
 }
 
 @test "stow: is_parent_dir_symlinked detects parent symlink" {
-    load_lib "lib-stow"
+    load_lib "full"
     
-    local target_dir="$BATS_TEST_TMPDIR/target"
-    local link_dir="$BATS_TEST_TMPDIR/link"
-    local file_in_link="$link_dir/file.txt"
+    # Set up a proper stow-like structure
+    local test_home="$BATS_TEST_TMPDIR/home"
+    local test_stow="$BATS_TEST_TMPDIR/stow"
+    local package="testpkg"
     
-    mkdir -p "$target_dir"
-    ln -s "$target_dir" "$link_dir"
-    touch "$file_in_link"
+    mkdir -p "$test_home"
+    mkdir -p "$test_stow/$package/dot-config"
     
-    run is_parent_dir_symlinked "$file_in_link" "$target_dir"
+    # Override HOME and STOW_DIR for this test
+    export HOME="$test_home"
+    export STOW_DIR="$test_stow"
+    
+    # Create the symlink: ~/.config -> stow/testpkg/dot-config
+    ln -s "$test_stow/$package/dot-config" "$test_home/.config"
+    touch "$test_stow/$package/dot-config/somefile"
+    
+    # Test that is_parent_dir_symlinked detects the symlink
+    run is_parent_dir_symlinked "$test_home/.config/somefile" "$package"
     assert_success
 }
 

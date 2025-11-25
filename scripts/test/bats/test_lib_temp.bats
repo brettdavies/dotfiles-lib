@@ -9,31 +9,45 @@ load 'test_helper'
 # ============================================================================
 
 @test "temp: init_temp_dir creates temporary directory" {
-    load_lib "lib-temp"
+    load_lib "full"
     
-    run init_temp_dir "test.XXXXXX"
-    assert_success
-    [ -n "$output" ]
-    [ -d "$output" ]
+    # Reset temp dir state for clean test
+    unset SCRIPT_TEMP_DIR
+    
+    # Call directly (not in subshell) - subshell would trigger EXIT trap cleanup
+    init_temp_dir "test.XXXXXX" > /dev/null
+    [ -n "$SCRIPT_TEMP_DIR" ]
+    [ -d "$SCRIPT_TEMP_DIR" ]
 }
 
 @test "temp: init_temp_dir sets secure permissions" {
-    load_lib "lib-temp"
+    load_lib "full"
     
-    local temp_dir
-    temp_dir=$(init_temp_dir "test.XXXXXX")
+    # Reset temp dir state for clean test
+    unset SCRIPT_TEMP_DIR
+    
+    # Call directly (not in subshell) - subshell would trigger EXIT trap cleanup
+    init_temp_dir "test.XXXXXX" > /dev/null
+    
+    # Verify directory exists before checking permissions
+    [ -d "$SCRIPT_TEMP_DIR" ] || fail "Temp directory not created"
     
     local perms
-    perms=$(stat -f "%OLp" "$temp_dir" 2>/dev/null || stat -c "%a" "$temp_dir" 2>/dev/null)
+    perms=$(stat -f "%OLp" "$SCRIPT_TEMP_DIR" 2>/dev/null || stat -c "%a" "$SCRIPT_TEMP_DIR" 2>/dev/null)
     assert_equal "$perms" "700"
 }
 
 @test "temp: get_temp_dir returns existing directory" {
-    load_lib "lib-temp"
+    load_lib "full"
     
-    local temp_dir1
-    temp_dir1=$(init_temp_dir "test.XXXXXX")
+    # Reset temp dir state for clean test
+    unset SCRIPT_TEMP_DIR
     
+    # First create temp dir (call directly, not in subshell)
+    init_temp_dir "test.XXXXXX" > /dev/null
+    local temp_dir1="$SCRIPT_TEMP_DIR"
+    
+    # Now get_temp_dir should return the same directory
     local temp_dir2
     temp_dir2=$(get_temp_dir)
     
@@ -41,16 +55,20 @@ load 'test_helper'
 }
 
 @test "temp: get_temp_dir creates directory if not exists" {
-    load_lib "lib-temp"
+    load_lib "full"
     
+    # Reset temp dir state and ensure clean state
     unset SCRIPT_TEMP_DIR
-    run get_temp_dir
-    assert_success
-    [ -d "$output" ]
+    SCRIPT_TEMP_DIR=""
+    
+    # Call get_temp_dir directly (not in subshell) to avoid EXIT trap cleanup
+    get_temp_dir > /dev/null
+    [ -n "$SCRIPT_TEMP_DIR" ]
+    [ -d "$SCRIPT_TEMP_DIR" ]
 }
 
 @test "temp: create_temp_file creates file in temp directory" {
-    load_lib "lib-temp"
+    load_lib "full"
     
     init_temp_dir "test.XXXXXX"
     local temp_file
@@ -61,7 +79,7 @@ load 'test_helper'
 }
 
 @test "temp: create_temp_file sets secure permissions" {
-    load_lib "lib-temp"
+    load_lib "full"
     
     init_temp_dir "test.XXXXXX"
     local temp_file
@@ -73,7 +91,7 @@ load 'test_helper'
 }
 
 @test "temp: create_temp_subdir creates subdirectory" {
-    load_lib "lib-temp"
+    load_lib "full"
     
     init_temp_dir "test.XXXXXX"
     local temp_subdir
@@ -84,7 +102,7 @@ load 'test_helper'
 }
 
 @test "temp: cleanup_temp_dir removes directory" {
-    load_lib "lib-temp"
+    load_lib "full"
     
     local temp_dir
     temp_dir=$(init_temp_dir "test.XXXXXX")

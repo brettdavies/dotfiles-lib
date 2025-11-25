@@ -1,25 +1,61 @@
 #!/usr/bin/env bash
-# File system operations and optimizations
-# Provides optimized find operations, directory caching, and file system utilities
-# Requires: lib-core.sh (for DOTFILES_DIR, STOW_DIR)
-
-# Source core library if not already sourced
-if [ -z "${DOTFILES_DIR:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
-fi
+# Find operations with directory caching
+# Provides optimized find operations with caching support
+# Requires: util/paths.sh (for DOTFILES_DIR), fs/zsh-globs.sh (for find_files_zsh_glob), core/detect-shell.sh (for has_nameref_support), core/detect-os.sh (for is_zsh), util/output.sh (for err)
 
 # Prevent re-sourcing
-if [ -n "${LIB_FILESYSTEM_LOADED:-}" ]; then
+if [ -n "${LIB_FIND_LOADED:-}" ]; then
     return 0
 fi
-export LIB_FILESYSTEM_LOADED=1
+export LIB_FIND_LOADED=1
+
+# Source dependencies if not already sourced
+if [ -z "${DOTFILES_DIR:-}" ]; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../util/paths.sh" 2>/dev/null || true
+fi
+
+# Source zsh-globs if available
+if ! command -v find_files_zsh_glob &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/zsh-globs.sh" 2>/dev/null || true
+fi
+
+# Source detect-shell if not already sourced
+if ! command -v has_nameref_support &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/detect-shell.sh" 2>/dev/null || true
+fi
+
+# Source detect-os if not already sourced
+if ! command -v is_zsh &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/detect-os.sh" 2>/dev/null || true
+fi
+
+# Source output if not already sourced
+if ! command -v err &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../util/output.sh" 2>/dev/null || true
+fi
 
 # Directory listing cache (associative array)
 # Key: directory path, Value: newline-separated list of files
 # Note: On Bash 3.2 (macOS default), caching is disabled
+# Note: Caching is also disabled in test frameworks that use strict mode
 DIR_CACHE_SUPPORTED=false
-declare -A DIR_CACHE 2>/dev/null && DIR_CACHE_SUPPORTED=true || DIR_CACHE_SUPPORTED=false
 DIR_CACHE_INITIALIZED=false
+
+# Only enable caching if associative arrays work properly
+# Some environments (like BATS) cause issues with special characters in keys
+_test_cache_key="test|||key"
+if declare -A DIR_CACHE 2>/dev/null; then
+    # Test if we can actually use the array
+    if ( eval 'DIR_CACHE[$_test_cache_key]="test"' && eval '[ "${DIR_CACHE[$_test_cache_key]}" = "test" ]' ) 2>/dev/null; then
+        DIR_CACHE_SUPPORTED=true
+    fi
+fi
+unset _test_cache_key
 
 # Initialize directory cache
 # Usage: init_dir_cache
@@ -38,173 +74,6 @@ init_dir_cache() {
     DIR_CACHE_INITIALIZED=true
 }
 
-# Find files using zsh glob qualifiers (zsh only)
-# 
-# Purpose: Uses zsh glob qualifiers for fast file finding
-#   This is significantly faster than find for large directory trees
-# 
-# Parameters:
-#   $1 - Directory to search
-#   $2 - File type: "f" for files, "d" for directories, "a" for all, or find-style options
-#   $3 - Pattern (optional, e.g., "*.sh")
-# 
-# Returns: Array of file paths via global variable FIND_RESULTS
-# 
-# Side effects: Sets FIND_RESULTS array
-# 
-# Example:
-#   find_files_zsh_glob "$dir" "f" "*.sh"
-#   echo "${FIND_RESULTS[@]}"
-# 
-# Note: Only works under zsh. Falls back to find for bash.
-#   Glob qualifiers used:
-#     (.) = regular files
-#     (/) = directories
-#     (@) = symlinks
-#     (N) = null glob (don't error if no matches)
-#     (Om) = sort by modification time (newest first)
-#     (On) = sort by name
-find_files_zsh_glob() {
-    local dir="$1"
-    local file_type="${2:-f}"  # f=files, d=directories, a=all
-    local pattern="${3:-}"
-    
-    if ! is_zsh; then
-        # Not zsh, return empty (caller should use find fallback)
-        FIND_RESULTS=()
-        return 1
-    fi
-    
-    # Directory doesn't exist
-    if [ ! -d "$dir" ]; then
-        FIND_RESULTS=()
-        return 0
-    fi
-    
-    # Enable extended_glob locally for this function
-    local old_extended_glob
-    if [[ -o extended_glob ]]; then
-        old_extended_glob=1
-    else
-        setopt extended_glob
-        old_extended_glob=0
-    fi
-    
-    # Build glob pattern
-    local glob_pattern
-    if [ -n "$pattern" ]; then
-        glob_pattern="${dir}/**/${pattern}"
-    else
-        glob_pattern="${dir}/**/*"
-    fi
-    
-    # Add qualifiers based on file type
-    case "$file_type" in
-        f|file)
-            # Regular files only
-            glob_pattern="${glob_pattern}(.)"
-            ;;
-        d|dir|directory)
-            # Directories only
-            glob_pattern="${glob_pattern}(/)"
-            ;;
-        a|all)
-            # All files and directories (no qualifier)
-            ;;
-        *)
-            # Try to parse find-style options (basic support)
-            if [[ "$file_type" == *"-type f"* ]]; then
-                glob_pattern="${glob_pattern}(.)"
-            elif [[ "$file_type" == *"-type d"* ]]; then
-                glob_pattern="${glob_pattern}(/)"
-            fi
-            ;;
-    esac
-    
-    # Add null glob qualifier to avoid errors if no matches
-    glob_pattern="${glob_pattern}(N)"
-    
-    # Execute glob and store results
-    FIND_RESULTS=($~glob_pattern)
-    
-    # Restore extended_glob setting
-    if [ "$old_extended_glob" -eq 0 ]; then
-        unsetopt extended_glob
-    fi
-    
-    return 0
-}
-
-# Get directory listing using zsh globs (zsh only)
-# 
-# Purpose: Uses zsh glob qualifiers for fast directory listing
-# 
-# Parameters:
-#   $1 - Directory to list
-#   $2 - File type: "f" for files, "d" for directories, "a" for all
-# 
-# Returns: Array of paths via global variable DIR_LISTING
-# 
-# Side effects: Sets DIR_LISTING array
-# 
-# Example:
-#   get_dir_listing_zsh "$dir" "f"
-#   echo "${DIR_LISTING[@]}"
-# 
-# Note: Only works under zsh. Falls back to get_dir_listing() for bash.
-get_dir_listing_zsh() {
-    local dir="$1"
-    local file_type="${2:-a}"
-    
-    if ! is_zsh; then
-        DIR_LISTING=()
-        return 1
-    fi
-    
-    # Enable extended_glob locally
-    local old_extended_glob
-    if [[ -o extended_glob ]]; then
-        old_extended_glob=1
-    else
-        setopt extended_glob
-        old_extended_glob=0
-    fi
-    
-    # Build glob pattern based on file type
-    local glob_pattern
-    case "$file_type" in
-        f|file)
-            glob_pattern="${dir}/*(.)"  # Regular files only
-            ;;
-        d|dir|directory)
-            glob_pattern="${dir}/*(/)"  # Directories only
-            ;;
-        a|all)
-            glob_pattern="${dir}/*"     # All
-            ;;
-        *)
-            DIR_LISTING=()
-            if [ "$old_extended_glob" -eq 0 ]; then
-                unsetopt extended_glob
-            fi
-            return 1
-            ;;
-    esac
-    
-    # Add null glob to avoid errors
-    glob_pattern="${glob_pattern}(N)"
-    
-    # Execute glob
-    DIR_LISTING=($~glob_pattern)
-    
-    # Restore extended_glob setting
-    if [ "$old_extended_glob" -eq 0 ]; then
-        unsetopt extended_glob
-    fi
-    
-    return 0
-}
-
 # Find files in a directory and cache the results
 # Usage: find_files_in_dir <directory> [find_options]
 # Example: find_files_in_dir "$STOW_DIR/git" "-type f -name '*.sh'"
@@ -220,25 +89,11 @@ find_files_in_dir() {
     # Create cache key
     local cache_key="${dir}|||${find_opts}"
     
-    # Check cache first (only if supported)
-    if [ "$DIR_CACHE_SUPPORTED" = true ] && [ -n "${DIR_CACHE[$cache_key]:-}" ]; then
-        # Return cached results
-        readarray -t FIND_RESULTS < <(printf '%s\n' "${DIR_CACHE[$cache_key]}") 2>/dev/null || {
-            # Fallback for systems without readarray
-            FIND_RESULTS=()
-            while IFS= read -r line; do
-                [ -n "$line" ] && FIND_RESULTS+=("$line")
-            done < <(printf '%s\n' "${DIR_CACHE[$cache_key]}")
-        }
-        return 0
-    fi
+    # Caching disabled - special characters in keys cause issues in strict mode
     
     # Directory doesn't exist
     if [ ! -d "$dir" ]; then
         FIND_RESULTS=()
-        if [ "$DIR_CACHE_SUPPORTED" = true ]; then
-            DIR_CACHE[$cache_key]=""
-        fi
         return 0
     fi
     
@@ -263,17 +118,8 @@ find_files_in_dir() {
         fi
         
         # Try zsh glob approach
-        if find_files_zsh_glob "$dir" "$file_type" "$pattern"; then
+        if command -v find_files_zsh_glob &> /dev/null && find_files_zsh_glob "$dir" "$file_type" "$pattern"; then
             local temp_array=("${FIND_RESULTS[@]}")
-            
-            # Cache results if supported
-            if [ "$DIR_CACHE_SUPPORTED" = true ]; then
-                if [ ${#temp_array[@]} -gt 0 ]; then
-                    DIR_CACHE[$cache_key]=$(printf '%s\n' "${temp_array[@]}")
-                else
-                    DIR_CACHE[$cache_key]=""
-                fi
-            fi
             
             return 0
         fi
@@ -287,14 +133,8 @@ find_files_in_dir() {
     
     FIND_RESULTS=("${temp_array[@]}")
     
-    # Cache results (store as newline-separated string) - only if supported
-    if [ "$DIR_CACHE_SUPPORTED" = true ]; then
-        if [ ${#temp_array[@]} -gt 0 ]; then
-            DIR_CACHE[$cache_key]=$(printf '%s\n' "${temp_array[@]}")
-        else
-            DIR_CACHE[$cache_key]=""
-        fi
-    fi
+    # Skip caching - it causes issues with special characters in strict mode
+    # TODO: Re-enable caching with proper escaping
     
     return 0
 }
@@ -359,7 +199,7 @@ clear_dir_cache() {
             fi
         done
         for key in "${keys_to_remove[@]}"; do
-            unset DIR_CACHE[$key]
+            unset 'DIR_CACHE[$key]'
         done
     fi
 }
@@ -376,7 +216,7 @@ get_dir_listing() {
     
     # Try zsh glob approach first if available
     if is_zsh && [ -n "${ZSH_FILES_LOADED:-}" ]; then
-        if get_dir_listing_zsh "$dir" "$file_type"; then
+        if command -v get_dir_listing_zsh &> /dev/null && get_dir_listing_zsh "$dir" "$file_type"; then
             return 0
         fi
     fi
@@ -415,7 +255,7 @@ is_dir_cached() {
     local find_opts="${2:--type f}"
     local cache_key="${dir}|||${find_opts}"
     
-    [ -n "${DIR_CACHE[$cache_key]:-}" ]
+    [ -n "${DIR_CACHE["$cache_key"]:-}" ]
 }
 
 # Optimized find operation that uses cache when possible

@@ -60,43 +60,36 @@ teardown() {
 
 # Source a library file for testing
 # Usage: load_lib <library_name>
-# Example: load_lib "lib-core"
+# Examples: 
+#   load_lib "full" - loads loaders/full.sh (recommended for most tests)
+#   load_lib "standard" - loads loaders/standard.sh
+#   load_lib "minimal" - loads loaders/minimal.sh
+#   load_lib "core/constants" - loads core/constants.sh directly
 load_lib() {
     local lib_name="$1"
-    local lib_file="$LIB_DIR/$lib_name.sh"
+    local lib_file
     
-    # Most libraries use $(dirname "$0") to find dependencies, but when sourced
-    # from BATS, $0 points to the test runner. lib-core.sh uses BASH_SOURCE[0]
-    # which works correctly, so we always load it first to set up dependencies.
-    # Then we can load the specific library.
-    if [ "$lib_name" = "lib-core" ]; then
-        # lib-core.sh uses BASH_SOURCE[0] which works correctly when sourced
-        source "$lib_file"
-    else
-        # Ensure lib-core is loaded first (it handles all dependencies correctly)
-        if [ -z "${LIB_CORE_LOADED:-}" ]; then
-            source "$LIB_DIR/lib-core.sh"
-        fi
-        
-        # Now source the requested library
-        # Some libraries still use $(dirname "$0"), so we need to work around that
-        # by temporarily changing directory to the lib directory
-        local saved_pwd="$PWD"
-        (
-            cd "$LIB_DIR" || exit 1
-            # Create a temporary wrapper that sources the library with correct $0
-            # We'll use bash -c with the library file as the script name
-            bash -c "source '$lib_file'" "$lib_name.sh"
-        )
-        # Variables from the subshell won't persist, so we need to source directly
-        # Let's try a different approach: source it directly and let it handle dependencies
-        # Since lib-core is already loaded, dependencies should be available
-        source "$lib_file" 2>&1 || {
-            # If that fails, try sourcing from within the lib directory
-            cd "$LIB_DIR" && source "./$lib_name.sh" && cd "$saved_pwd"
-        }
-        cd "$saved_pwd" 2>/dev/null || true
+    # Determine file path
+    case "$lib_name" in
+        "full"|"standard"|"minimal")
+            lib_file="$LIB_DIR/loaders/$lib_name.sh"
+            ;;
+        *)
+            # Direct path (e.g., "core/constants", "pkg/version")
+            lib_file="$LIB_DIR/$lib_name.sh"
+            ;;
+    esac
+    
+    if [ ! -f "$lib_file" ]; then
+        echo "Error: Library file not found: $lib_file" >&2
+        return 1
     fi
+    
+    # Set _LIB_DIR for loaders (BATS modifies BASH_SOURCE which breaks path detection)
+    export _LIB_DIR="$LIB_DIR"
+    
+    # Source the library file
+    source "$lib_file"
 }
 
 # Mock a command
@@ -173,6 +166,6 @@ assert_file_contains() {
 run_function() {
     local func="$1"
     shift
-    run bash -c "source '$LIB_DIR/lib-core.sh' && $func $*"
+    run bash -c "source '$LIB_DIR/loaders/full.sh' && $func $*"
 }
 

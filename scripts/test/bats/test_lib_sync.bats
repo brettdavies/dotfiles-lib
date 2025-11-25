@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "sync: is_binary_file detects binary files" {
-    load_lib "lib-sync"
+    load_lib "full"
     
     # Create a binary file (with null bytes)
     local binary_file="$BATS_TEST_TMPDIR/binary.bin"
@@ -20,7 +20,7 @@ load 'test_helper'
 }
 
 @test "sync: is_binary_file detects text files" {
-    load_lib "lib-sync"
+    load_lib "full"
     
     local text_file="$BATS_TEST_TMPDIR/text.txt"
     echo "This is text" > "$text_file"
@@ -30,7 +30,7 @@ load 'test_helper'
 }
 
 @test "sync: compare_files detects identical files" {
-    load_lib "lib-sync"
+    load_lib "full"
     
     local file1="$BATS_TEST_TMPDIR/file1.txt"
     local file2="$BATS_TEST_TMPDIR/file2.txt"
@@ -42,7 +42,7 @@ load 'test_helper'
 }
 
 @test "sync: compare_files detects different files" {
-    load_lib "lib-sync"
+    load_lib "full"
     
     local file1="$BATS_TEST_TMPDIR/file1.txt"
     local file2="$BATS_TEST_TMPDIR/file2.txt"
@@ -54,7 +54,7 @@ load 'test_helper'
 }
 
 @test "sync: copy_to_repo copies file correctly" {
-    load_lib "lib-sync"
+    load_lib "full"
     
     local source_file="$BATS_TEST_TMPDIR/source.txt"
     local dest_file="$BATS_TEST_TMPDIR/dest.txt"
@@ -67,7 +67,7 @@ load 'test_helper'
 }
 
 @test "sync: create_file_backup creates backup" {
-    load_lib "lib-sync"
+    load_lib "full"
     
     local original_file="$BATS_TEST_TMPDIR/original.txt"
     echo "original content" > "$original_file"

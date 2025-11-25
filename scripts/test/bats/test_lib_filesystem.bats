@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "filesystem: find_files_array finds files in directory" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     local test_dir="$BATS_TEST_TMPDIR/testdir"
     mkdir -p "$test_dir"
@@ -25,7 +25,7 @@ load 'test_helper'
 }
 
 @test "filesystem: find_dirs_in_dir finds directories" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     local test_dir="$BATS_TEST_TMPDIR/testdir"
     mkdir -p "$test_dir/subdir1"
@@ -38,7 +38,7 @@ load 'test_helper'
 }
 
 @test "filesystem: count_files_in_dir counts files correctly" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     local test_dir="$BATS_TEST_TMPDIR/testdir"
     mkdir -p "$test_dir"
@@ -53,7 +53,7 @@ load 'test_helper'
 }
 
 @test "filesystem: is_dir_empty returns true for empty directory" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     local test_dir="$BATS_TEST_TMPDIR/emptydir"
     mkdir -p "$test_dir"
@@ -63,7 +63,7 @@ load 'test_helper'
 }
 
 @test "filesystem: is_dir_empty returns false for non-empty directory" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     local test_dir="$BATS_TEST_TMPDIR/nonemptydir"
     mkdir -p "$test_dir"
@@ -74,7 +74,7 @@ load 'test_helper'
 }
 
 @test "filesystem: clear_dir_cache clears cache" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     init_dir_cache
     run clear_dir_cache
@@ -88,7 +88,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "filesystem: find_files_zsh_glob works under zsh" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     # Skip if not running under zsh
     is_zsh || skip "Not running under zsh"
@@ -106,7 +106,7 @@ load 'test_helper'
 }
 
 @test "filesystem: find_files_zsh_glob returns empty when not zsh" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     # Skip if running under zsh (this test is for bash)
     is_zsh && skip "Running under zsh, skipping bash fallback test"
@@ -122,7 +122,7 @@ load 'test_helper'
 }
 
 @test "filesystem: get_dir_listing_zsh works under zsh" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     # Skip if not running under zsh
     is_zsh || skip "Not running under zsh"
@@ -140,7 +140,7 @@ load 'test_helper'
 }
 
 @test "filesystem: find_files_in_dir works with zsh globs or find fallback" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     # This test verifies that find_files_in_dir works correctly whether using
     # zsh glob qualifiers or find command fallback
@@ -167,7 +167,7 @@ load 'test_helper'
 }
 
 @test "filesystem: find_files_in_dir fallback produces correct results" {
-    load_lib "lib-filesystem"
+    load_lib "full"
     
     # Test that fallback to find command produces same results as zsh globs
     local test_dir="$BATS_TEST_TMPDIR/fallback_verify"

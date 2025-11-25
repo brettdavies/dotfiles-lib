@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "file: get_file_permissions returns octal permissions" {
-    load_lib "lib-file"
+    load_lib "full"
     
     local test_file="$BATS_TEST_TMPDIR/test.txt"
     touch "$test_file"
@@ -21,7 +21,7 @@ load 'test_helper'
 }
 
 @test "file: get_file_permissions handles 600 permissions" {
-    load_lib "lib-file"
+    load_lib "full"
     
     local test_file="$BATS_TEST_TMPDIR/test.txt"
     touch "$test_file"
@@ -33,7 +33,7 @@ load 'test_helper'
 }
 
 @test "file: get_file_permissions handles 755 permissions" {
-    load_lib "lib-file"
+    load_lib "full"
     
     local test_file="$BATS_TEST_TMPDIR/test.txt"
     touch "$test_file"
@@ -45,7 +45,7 @@ load 'test_helper'
 }
 
 @test "file: get_file_permissions works cross-platform" {
-    load_lib "lib-file"
+    load_lib "full"
     
     local test_file="$BATS_TEST_TMPDIR/test.txt"
     touch "$test_file"
@@ -58,7 +58,7 @@ load 'test_helper'
 }
 
 @test "file: get_file_permissions works with zsh zstat or external stat" {
-    load_lib "lib-file"
+    load_lib "full"
     
     # This test verifies that get_file_permissions works with both
     # zsh built-in zstat and external stat command fallback
@@ -72,7 +72,7 @@ load 'test_helper'
 }
 
 @test "file: get_file_stat works with zsh zstat or external stat" {
-    load_lib "lib-file"
+    load_lib "full"
     
     # Test that get_file_stat works with both zsh built-in and external stat
     local test_file="$BATS_TEST_TMPDIR/stat_size.txt"
@@ -86,7 +86,7 @@ load 'test_helper'
 }
 
 @test "file: safe_mkdir works with zsh built-in or external mkdir" {
-    load_lib "lib-file"
+    load_lib "full"
     
     # Test that safe_mkdir works with both zsh zf_mkdir and external mkdir
     local test_dir="$BATS_TEST_TMPDIR/safe_mkdir_test"
@@ -100,7 +100,7 @@ load 'test_helper'
 }
 
 @test "file: safe_ln works with zsh built-in or external ln" {
-    load_lib "lib-file"
+    load_lib "full"
     
     # Test that safe_ln works with both zsh zf_ln and external ln
     local test_file="$BATS_TEST_TMPDIR/safe_ln_source.txt"
@@ -116,7 +116,7 @@ load 'test_helper'
 }
 
 @test "file: safe_rm works with zsh built-in or external rm" {
-    load_lib "lib-file"
+    load_lib "full"
     
     # Test that safe_rm works with both zsh zf_rm and external rm
     local test_file="$BATS_TEST_TMPDIR/safe_rm_test.txt"
@@ -128,7 +128,7 @@ load 'test_helper'
 }
 
 @test "file: safe_chmod works with zsh built-in or external chmod" {
-    load_lib "lib-file"
+    load_lib "full"
     
     # Test that safe_chmod works with both zsh zf_chmod and external chmod
     local test_file="$BATS_TEST_TMPDIR/safe_chmod_test.txt"

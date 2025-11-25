@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "os: get_bash_version returns version string" {
-    load_lib "lib-os"
+    load_lib "full"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -21,7 +21,7 @@ load 'test_helper'
 }
 
 @test "os: compare_bash_version compares versions correctly" {
-    load_lib "lib-os"
+    load_lib "full"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -46,7 +46,7 @@ load 'test_helper'
 }
 
 @test "os: is_bash_4_plus detects Bash 4+" {
-    load_lib "lib-os"
+    load_lib "full"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -58,7 +58,7 @@ load 'test_helper'
 }
 
 @test "os: is_bash_5_2_plus detects Bash 5.2+" {
-    load_lib "lib-os"
+    load_lib "full"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -73,7 +73,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "os: has_nameref_support detects nameref availability" {
-    load_lib "lib-os"
+    load_lib "full"
     
     run has_nameref_support
     # Should succeed if nameref is supported, fail otherwise
@@ -81,7 +81,7 @@ load 'test_helper'
 }
 
 @test "os: has_wait_n_support detects wait -n availability" {
-    load_lib "lib-os"
+    load_lib "full"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -92,7 +92,7 @@ load 'test_helper'
 }
 
 @test "os: has_xtracefd_support detects BASH_XTRACEFD availability" {
-    load_lib "lib-os"
+    load_lib "full"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -103,7 +103,7 @@ load 'test_helper'
 }
 
 @test "os: has_mapfile_null_delim detects mapfile -d availability" {
-    load_lib "lib-os"
+    load_lib "full"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"

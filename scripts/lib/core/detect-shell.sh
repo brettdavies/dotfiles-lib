@@ -1,62 +1,13 @@
 #!/usr/bin/env bash
-# OS detection and shell detection library
-# Provides functions for detecting operating system and shell type
-# Requires: lib-constants.sh (for potential future use)
+# Shell version and feature detection library
+# Provides functions for detecting shell version and features
+# No dependencies (core layer)
 
 # Prevent re-sourcing
-if [ -n "${LIB_OS_LOADED:-}" ]; then
+if [ -n "${LIB_DETECT_SHELL_LOADED:-}" ]; then
     return 0
 fi
-export LIB_OS_LOADED=1
-
-# Source constants if not already sourced
-if [ -z "${RED:-}" ] || [ -z "${GREEN:-}" ] || [ -z "${YELLOW:-}" ] || [ -z "${NC:-}" ]; then
-    source "$(dirname "$0")/lib-constants.sh"
-fi
-
-# ============================================================================
-# OS Detection
-# ============================================================================
-
-# Detect the operating system
-# 
-# Purpose: Identifies the current OS (macOS, Linux, or unknown) for cross-platform compatibility
-# 
-# Parameters: None
-# 
-# Returns: 
-#   - "macos" for macOS/Darwin systems
-#   - "linux" for Linux systems (GNU or musl)
-#   - "unknown" for unrecognized systems
-#   Echoes result to stdout (use with command substitution)
-# 
-# Side effects: None
-# 
-# Example:
-#   OS=$(detect_os)
-#   if [ "$OS" = "macos" ]; then
-#       echo "Running on macOS"
-#   fi
-# 
-# Uses Bash 4+ features for case conversion (with fallback for Bash 3.2)
-detect_os() {
-    # Convert to lowercase (Bash 4+), with fallback for older Bash
-    local os_type
-    if is_bash_4_plus; then
-        os_type="${OSTYPE,,}"
-    else
-        # Fallback for Bash 3.2
-        os_type=$(echo "$OSTYPE" | tr '[:upper:]' '[:lower:]')
-    fi
-    
-    if [[ "$os_type" == "darwin"* ]]; then
-        echo -n "macos"
-    elif [[ "$os_type" == "linux-gnu"* ]] || [[ "$os_type" == "linux-musl"* ]]; then
-        echo -n "linux"
-    else
-        echo -n "unknown"
-    fi
-}
+export LIB_DETECT_SHELL_LOADED=1
 
 # ============================================================================
 # Bash Version Detection
@@ -264,7 +215,8 @@ is_bash_4_plus() {
 #       local -n array_ref="$1"
 #   fi
 has_nameref_support() {
-    if is_zsh; then
+    # Check if is_zsh function exists (from detect-os.sh)
+    if command -v is_zsh &> /dev/null && is_zsh; then
         # Zsh always supports namerefs via typeset -n
         return 0
     fi
@@ -293,7 +245,7 @@ has_nameref_support() {
 #       wait -n
 #   fi
 has_wait_n_support() {
-    if is_zsh; then
+    if command -v is_zsh &> /dev/null && is_zsh; then
         # Zsh doesn't have wait -n, but has wait for any process differently
         return 1
     fi
@@ -318,7 +270,7 @@ has_wait_n_support() {
 #       exec {BASH_XTRACEFD}>debug.log
 #   fi
 has_xtracefd_support() {
-    if is_zsh; then
+    if command -v is_zsh &> /dev/null && is_zsh; then
         # BASH_XTRACEFD is Bash-specific
         return 1
     fi
@@ -343,7 +295,7 @@ has_xtracefd_support() {
 #       mapfile -d '' -t array < <(find . -print0)
 #   fi
 has_mapfile_null_delim() {
-    if is_zsh; then
+    if command -v is_zsh &> /dev/null && is_zsh; then
         # Zsh has different array reading mechanisms
         return 1
     fi
@@ -353,24 +305,49 @@ has_mapfile_null_delim() {
 }
 
 # ============================================================================
-# Shell Detection
+# Initialize Bash Feature Flags
 # ============================================================================
 
-# Detect if running under zsh
-# 
-# Purpose: Determines if the current shell is zsh for shell-specific optimizations
-# 
-# Parameters: None
-# 
-# Returns: 0 (true) if zsh, 1 (false) otherwise
-# 
-# Side effects: None
-# 
-# Example:
-#   if is_zsh; then
-#       echo "Running under zsh"
-#   fi
-is_zsh() {
-    [ -n "${ZSH_VERSION:-}" ]
-}
+# Initialize Bash feature flags after shell detection
+# These flags indicate which features are available based on shell version
+# They are exported as environment variables for use by scripts
+# This initialization happens automatically when detect-shell.sh is loaded
+if ! is_zsh; then
+    # Bash feature flags
+    export BASH_5_2_PLUS=false
+    export BASH_5_1_PLUS=false
+    export BASH_5_0_PLUS=false
+    export BASH_4_4_PLUS=false
+    export BASH_4_3_PLUS=false
+    export BASH_4_PLUS=false
+    
+    if is_bash_5_2_plus; then
+        export BASH_5_2_PLUS=true
+        export BASH_5_1_PLUS=true
+        export BASH_5_0_PLUS=true
+        export BASH_4_4_PLUS=true
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_5_1_plus; then
+        export BASH_5_1_PLUS=true
+        export BASH_5_0_PLUS=true
+        export BASH_4_4_PLUS=true
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_5_0_plus; then
+        export BASH_5_0_PLUS=true
+        export BASH_4_4_PLUS=true
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_4_4_plus; then
+        export BASH_4_4_PLUS=true
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_4_3_plus; then
+        export BASH_4_3_PLUS=true
+        export BASH_4_PLUS=true
+    elif is_bash_4_plus; then
+        export BASH_4_PLUS=true
+    fi
+fi
 

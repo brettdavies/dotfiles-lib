@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Stow and symlink helper functions
 # Provides functions for checking symlinks and transforming dotfiles paths
-# Requires: lib-core.sh (for DOTFILES_DIR, STOW_DIR variables)
+# Requires: util/paths.sh (for DOTFILES_DIR, STOW_DIR, HOME)
 
-# Source core library if not already sourced
-if [ -z "${DOTFILES_DIR:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
+# Prevent re-sourcing
+if [ -n "${LIB_STOW_LOADED:-}" ]; then
+    return 0
+fi
+export LIB_STOW_LOADED=1
+
+# Source paths if not already sourced
+if [ -z "${DOTFILES_DIR:-}" ] || [ -z "${STOW_DIR:-}" ]; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../util/paths.sh" 2>/dev/null || true
 fi
 
 # Check if a directory is a symlink pointing to the expected location

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Rollback/undo functionality
 # Provides functions for tracking operations and creating rollback scripts
-# Requires: lib-core.sh, lib-temp.sh (via lib-core.sh), lib-logging.sh (via lib-core.sh)
+# Requires: feature/temp.sh (for create_temp_file), feature/logging.sh (for log_debug, log_info), util/output.sh (for err), fs/file-ops.sh (for safe_chmod)
 
 # Prevent re-sourcing
 if [ -n "${LIB_ROLLBACK_LOADED:-}" ]; then
@@ -9,10 +9,22 @@ if [ -n "${LIB_ROLLBACK_LOADED:-}" ]; then
 fi
 export LIB_ROLLBACK_LOADED=1
 
-# Source core library if not already sourced
-# Check if DOTFILES_DIR is defined (indicates lib-core.sh has been sourced)
-if [ -z "${DOTFILES_DIR:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
+# Source dependencies if not already sourced
+if ! command -v create_temp_file &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/temp.sh" 2>/dev/null || true
+fi
+
+# Source logging if available
+if ! command -v log_debug &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/logging.sh" 2>/dev/null || true
+fi
+
+# Source output if not already sourced
+if ! command -v err &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../util/output.sh" 2>/dev/null || true
 fi
 
 # Global rollback state
@@ -27,7 +39,15 @@ init_rollback() {
     local script_path="${1:-}"
     
     if [ -z "$script_path" ]; then
-        script_path=$(create_temp_file "rollback.XXXXXX.sh")
+        if command -v create_temp_file &> /dev/null; then
+            script_path=$(create_temp_file "rollback.XXXXXX.sh")
+        else
+            script_path=$(mktemp "/tmp/rollback.XXXXXX.sh" 2>/dev/null || echo "")
+            if [ -z "$script_path" ]; then
+                err "Failed to create temporary file for rollback script" 1
+                return 1
+            fi
+        fi
     fi
     
     ROLLBACK_SCRIPT="$script_path"
@@ -53,7 +73,9 @@ init_rollback() {
         chmod +x "$ROLLBACK_SCRIPT" 2>/dev/null || true
     fi
     
-    log_debug "Rollback initialized: $ROLLBACK_SCRIPT"
+    if command -v log_debug &> /dev/null; then
+        log_debug "Rollback initialized: $ROLLBACK_SCRIPT"
+    fi
 }
 
 # Record an operation for rollback
@@ -78,7 +100,9 @@ record_operation() {
         echo ""
     } >> "$ROLLBACK_SCRIPT"
     
-    log_debug "Recorded operation: $description"
+    if command -v log_debug &> /dev/null; then
+        log_debug "Recorded operation: $description"
+    fi
 }
 
 # Record file backup for rollback
@@ -158,8 +182,10 @@ finalize_rollback() {
         echo "echo 'Rollback script location: $ROLLBACK_SCRIPT'"
     } >> "$ROLLBACK_SCRIPT"
     
-    log_info "Rollback script created: $ROLLBACK_SCRIPT"
-    log_info "To undo changes, run: $ROLLBACK_SCRIPT"
+    if command -v log_info &> /dev/null; then
+        log_info "Rollback script created: $ROLLBACK_SCRIPT"
+        log_info "To undo changes, run: $ROLLBACK_SCRIPT"
+    fi
 }
 
 # Get rollback script path
@@ -189,7 +215,9 @@ execute_rollback() {
         return 1
     fi
     
-    log_info "Executing rollback script: $script_path"
+    if command -v log_info &> /dev/null; then
+        log_info "Executing rollback script: $script_path"
+    fi
     bash "$script_path"
 }
 

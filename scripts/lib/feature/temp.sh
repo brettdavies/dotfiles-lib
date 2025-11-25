@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
 # Temporary directory management
 # Provides functions for creating and managing a single temporary directory per script execution
-# Uses a single directory approach: one temp directory per script, cleaned up on exit
-# Requires: lib-core.sh, lib-errors.sh (for err function)
-
-# Source core library if not already sourced
-if [ -z "${DOTFILES_DIR:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
-fi
+# Requires: util/output.sh (for err), core/constants.sh (for PERM_SECRET_DIR, PERM_SECRET_FILE), fs/file-ops.sh (for safe_chmod, safe_rm)
 
 # Prevent re-sourcing
 if [ -n "${LIB_TEMP_LOADED:-}" ]; then
     return 0
 fi
 export LIB_TEMP_LOADED=1
+
+# Source dependencies if not already sourced
+if ! command -v err &> /dev/null; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../util/output.sh" 2>/dev/null || true
+fi
+
+# Source constants if not already sourced
+if [ -z "${PERM_SECRET_DIR:-}" ]; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/constants.sh" 2>/dev/null || true
+fi
 
 # Global temporary directory for this script execution
 SCRIPT_TEMP_DIR=""
@@ -209,3 +215,4 @@ cleanup_temp_dir() {
         SCRIPT_TEMP_DIR=""
     fi
 }
+

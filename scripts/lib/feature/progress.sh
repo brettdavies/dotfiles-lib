@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Progress indicator functions using ConEmu OSC 9;4 escape sequence protocol
 # Provides standardized progress reporting for terminal emulators
-# Requires: lib-core.sh (for VERBOSE flag)
+# Requires: core/constants.sh (for colors), util/args.sh (for VERBOSE, NO_PROGRESS flags)
 
 # Prevent re-sourcing
 if [ -n "${LIB_PROGRESS_LOADED:-}" ]; then
@@ -9,10 +9,10 @@ if [ -n "${LIB_PROGRESS_LOADED:-}" ]; then
 fi
 export LIB_PROGRESS_LOADED=1
 
-# Source core library if not already sourced
-# Check if colors are defined (indicates lib-core.sh has been sourced)
-if [ -z "${RED:-}" ] || [ -z "${GREEN:-}" ] || [ -z "${YELLOW:-}" ] || [ -z "${NC:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
+# Source constants if not already sourced
+if [ -z "${YELLOW:-}" ] || [ -z "${NC:-}" ]; then
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/constants.sh" 2>/dev/null || true
 fi
 
 # Global progress state
@@ -93,7 +93,7 @@ progress_start() {
     
     _send_progress_sequence 1 0  # state=1 (active), progress=0
     
-    if [ -n "$message" ] && [ "$VERBOSE" != true ]; then
+    if [ -n "$message" ] && [ "${VERBOSE:-false}" != true ]; then
         echo "$message" >&2
     fi
 }
@@ -115,7 +115,7 @@ progress_update() {
     
     _send_progress_sequence 1 "$percentage"  # state=1 (active)
     
-    if [ -n "$message" ] && [ "$VERBOSE" != true ]; then
+    if [ -n "$message" ] && [ "${VERBOSE:-false}" != true ]; then
         echo "$message" >&2
     fi
 }
@@ -135,7 +135,7 @@ progress_complete() {
     
     _send_progress_sequence 2 100  # state=2 (complete), progress=100
     
-    if [ -n "$message" ] && [ "$VERBOSE" != true ]; then
+    if [ -n "$message" ] && [ "${VERBOSE:-false}" != true ]; then
         echo "$message" >&2
     fi
 }
@@ -177,7 +177,7 @@ progress_indeterminate() {
     # Some terminals may show a spinner for this
     _send_progress_sequence 1 0  # state=1 (active), progress=0
     
-    if [ -n "$message" ] && [ "$VERBOSE" != true ]; then
+    if [ -n "$message" ] && [ "${VERBOSE:-false}" != true ]; then
         echo "$message" >&2
     fi
 }

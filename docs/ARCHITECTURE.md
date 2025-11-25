@@ -40,73 +40,79 @@ The main entry point that coordinates all installation steps:
 
 The library system is organized into focused, single-responsibility modules:
 
-#### Core Libraries
+#### Library Loaders
 
-- **`lib-core.sh`** - Foundation library
-  - OS detection
-  - Color constants
-  - Common variables (DOTFILES_DIR, STOW_DIR, SCRIPTS_DIR, OS)
-  - Argument parsing (`parse_common_args`)
-  - Verbose output helpers (`verbose_*` functions)
-  - Modern shell helpers (`read_lines_into_array`, `read_null_delimited_into_array`)
-  - Auto-sources other libraries
+The library system provides three loader options for different use cases:
 
-- **`lib-errors.sh`** - Error handling
-  - Error reporting (`err`, `die`, `warn`, `info`)
-  - Trap handlers (`setup_traps`, `handle_signal`, `handle_error`)
-  - Exit code management
+- **`loaders/minimal.sh`** - Minimal loader for simple scripts
+  - Core constants and OS detection
+  - Basic output functions (err, warn, info)
+  - Argument parsing
 
-- **`lib-logging.sh`** - Structured logging
-  - Log initialization (`init_logging`)
-  - Log functions (`log_info`, `log_warn`, `log_error`, `log_debug`)
-  - Timestamped, structured log entries
+- **`loaders/standard.sh`** - Standard loader for most install scripts
+  - Everything in minimal loader
+  - Path utilities
+  - Trap handlers
+  - Temporary directory management
+  - Logging and verbose output
+  - Progress indicators
 
-#### Feature Libraries
+- **`loaders/full.sh`** - Full loader with all functionality
+  - Everything in standard loader
+  - Shell compatibility layer (arrays, strings, zsh modules)
+  - Filesystem operations
+  - Package management
+  - Domain operations (stow, sync)
 
-- **`lib-temp.sh`** - Temporary file management
-  - Single temporary directory per script execution
-  - Automatic cleanup on exit
-  - Secure permissions (600 for files, 700 for directories)
+#### Core Layer (`core/`)
 
-- **`lib-filesystem.sh`** - File system operations
-  - Optimized `find` operations with directory caching
-  - Array-based file/directory listing
-  - Performance optimizations for large directory trees
+- **`core/constants.sh`** - Color constants and file permission constants
+- **`core/detect-os.sh`** - OS detection (macOS, Linux)
+- **`core/detect-shell.sh`** - Shell detection and version checking
 
-- **`lib-stow.sh`** - Stow operations
-  - Path transformation (dot-* <-> .*)
-  - Symlink validation
-  - Parent directory symlink checking
+#### Utility Layer (`util/`)
 
-- **`lib-packages.sh`** - Package checking
-  - Homebrew package/tap/cask checking
-  - VS Code/Cursor extension checking
-  - Package status caching for performance
+- **`util/output.sh`** - Basic output functions (err, die, warn, info, get_call_stack)
+- **`util/timestamp.sh`** - Timestamp generation
+- **`util/paths.sh`** - Path utilities and common variable initialization
+- **`util/args.sh`** - Common command-line argument parsing
 
-- **`lib-sync.sh`** - Bidirectional sync
-  - File comparison and diffing
-  - Binary file detection
-  - File merging with conflict markers
-  - Backup creation
+#### Feature Layer (`feature/`)
 
-- **`lib-progress.sh`** - Progress indicators
-  - ConEmu OSC 9;4 escape sequence protocol
-  - Progress bars and spinners
-  - Item-by-item progress tracking
+- **`feature/traps.sh`** - Trap handlers and signal handling
+- **`feature/temp.sh`** - Temporary file management (single directory per script)
+- **`feature/logging.sh`** - Structured logging system
+- **`feature/verbose.sh`** - Standardized verbose output helpers
+- **`feature/progress.sh`** - Progress indicators using ConEmu OSC 9;4 protocol
+- **`feature/validation.sh`** - Input validation and sanitization
+- **`feature/rollback.sh`** - Rollback/undo functionality
 
-- **`lib-validation.sh`** - Input validation
-  - Path validation and sanitization
-  - Path traversal prevention
-  - Argument validation
+#### Filesystem Layer (`fs/`)
 
-- **`lib-rollback.sh`** - Rollback/undo
-  - Operation tracking
-  - Rollback script generation
-  - State restoration
+- **`fs/file-ops.sh`** - File operations and permissions
+- **`fs/find.sh`** - Optimized file system operations with directory caching
+- **`fs/zsh-globs.sh`** - Zsh-specific glob operations
 
-- **`lib-file.sh`** - File operations
-  - Cross-platform permission checking
-  - File metadata operations
+#### Shell Layer (`shell/`)
+
+- **`shell/zsh-modules.sh`** - Zsh module loading
+- **`shell/arrays.sh`** - Array manipulation helpers
+- **`shell/strings.sh`** - String manipulation functions
+
+#### Package Management Layer (`pkg/`)
+
+- **`pkg/cache.sh`** - Package status caching infrastructure
+- **`pkg/brew.sh`** - Homebrew package/cask checking
+- **`pkg/extensions.sh`** - VS Code/Cursor extension checking
+- **`pkg/version.sh`** - Version comparison functions
+- **`pkg/version-constraints.sh`** - Version constraints and YAML parsing
+
+#### Domain Layer (`domain/`)
+
+- **`domain/stow.sh`** - Stow operations (path transformation, symlink validation)
+- **`domain/sync.sh`** - Basic sync operations (file comparison, binary detection)
+- **`domain/sync-backup.sh`** - Backup creation for sync operations
+- **`domain/sync-merge.sh`** - Merge/diff3 operations for sync
 
 ### 3. Installation Scripts (`scripts/install/`)
 
@@ -120,7 +126,7 @@ Each script handles a single installation task:
 
 **Common Pattern:**
 
-1. Source `lib-core.sh` (which auto-sources other libraries)
+1. Source appropriate loader (`loaders/minimal.sh`, `loaders/standard.sh`, or `loaders/full.sh`)
 2. Parse common arguments
 3. Initialize temporary directory
 4. Set up trap handlers
@@ -142,60 +148,64 @@ Each script handles a single installation task:
 ```plaintext
 install.sh
   ├── check-dependencies.sh
-  │   └── Uses: lib-core, lib-errors, lib-logging, lib-temp
+  │   └── Uses: loaders/standard.sh
   ├── stow-packages.sh
-  │   └── Uses: lib-core, lib-stow, lib-sync, lib-filesystem, 
-  │            lib-validation, lib-rollback, lib-progress, lib-temp
+  │   └── Uses: loaders/full.sh
   ├── create-secrets.sh
-  │   └── Uses: lib-core, lib-file, lib-temp
+  │   └── Uses: loaders/full.sh
   ├── create-lmstudio-pointer.sh
-  │   └── Uses: lib-core, lib-temp
+  │   └── Uses: loaders/standard.sh
   └── install-packages.sh
-      └── Uses: lib-core, lib-packages, lib-progress, lib-temp
+      └── Uses: loaders/full.sh
 ```
 
 ### Library Dependencies
 
+The library system uses a layered architecture with clear dependencies:
+
 ```plaintext
-lib-core.sh (foundation)
-  ├── Auto-sources: lib-errors.sh, lib-logging.sh, lib-temp.sh,
-  │                 lib-filesystem.sh, lib-progress.sh,
-  │                 lib-validation.sh, lib-rollback.sh
-  │
-  └── Used by: All other libraries and scripts
+Layer 0: Core (no dependencies)
+  ├── core/constants.sh
+  ├── core/detect-os.sh
+  └── core/detect-shell.sh
 
-lib-errors.sh
-  └── Depends on: lib-core.sh (for colors)
+Layer 1: Utilities (depend on core/)
+  ├── util/output.sh → core/constants.sh, core/detect-os.sh
+  ├── util/timestamp.sh
+  ├── util/paths.sh → core/detect-os.sh
+  └── util/args.sh → util/output.sh
 
-lib-logging.sh
-  └── Depends on: lib-core.sh (for VERBOSE flag, colors)
+Layer 2: Features (depend on core/, util/)
+  ├── feature/traps.sh → util/output.sh
+  ├── feature/temp.sh → util/output.sh
+  ├── feature/logging.sh → util/output.sh, util/timestamp.sh
+  ├── feature/verbose.sh → util/output.sh
+  ├── feature/progress.sh → util/output.sh
+  ├── feature/validation.sh → util/output.sh
+  └── feature/rollback.sh → feature/temp.sh, feature/logging.sh
 
-lib-temp.sh
-  └── Depends on: lib-core.sh, lib-errors.sh
+Layer 2: Filesystem (depend on core/, util/)
+  ├── fs/file-ops.sh → util/output.sh
+  ├── fs/find.sh → util/output.sh
+  └── fs/zsh-globs.sh → core/detect-os.sh
 
-lib-filesystem.sh
-  └── Depends on: lib-core.sh, lib-errors.sh
+Layer 2: Shell (depend on core/)
+  ├── shell/zsh-modules.sh → core/detect-os.sh
+  ├── shell/arrays.sh → core/detect-shell.sh
+  └── shell/strings.sh
 
-lib-stow.sh
-  └── Depends on: lib-core.sh
+Layer 3: Package Management (depend on core/, util/, feature/)
+  ├── pkg/cache.sh → util/output.sh, pkg/extensions.sh
+  ├── pkg/brew.sh → util/output.sh
+  ├── pkg/extensions.sh → util/output.sh
+  ├── pkg/version.sh → util/output.sh
+  └── pkg/version-constraints.sh → pkg/version.sh
 
-lib-packages.sh
-  └── Depends on: lib-core.sh
-
-lib-sync.sh
-  └── Depends on: lib-core.sh
-
-lib-progress.sh
-  └── Depends on: lib-core.sh
-
-lib-validation.sh
-  └── Depends on: lib-core.sh
-
-lib-rollback.sh
-  └── Depends on: lib-core.sh, lib-temp.sh, lib-logging.sh
-
-lib-file.sh
-  └── Depends on: lib-core.sh
+Layer 3: Domain (depend on core/, util/, feature/)
+  ├── domain/stow.sh → util/output.sh
+  ├── domain/sync.sh → util/output.sh
+  ├── domain/sync-backup.sh → util/output.sh
+  └── domain/sync-merge.sh → util/output.sh
 ```
 
 ## Design Principles
@@ -212,9 +222,9 @@ Each library file and function has one clear purpose:
 
 Common functionality is extracted to libraries:
 
-- Argument parsing: `parse_common_args()` in `lib-core.sh`
-- Verbose output: `verbose_*` functions in `lib-core.sh`
-- Error handling: `err()`, `die()`, `warn()` in `lib-errors.sh`
+- Argument parsing: `parse_common_args()` in `util/args.sh`
+- Verbose output: `verbose_*` functions in `feature/verbose.sh`
+- Error handling: `err()`, `die()`, `warn()` in `util/output.sh`
 
 ### 3. Small, Testable, Atomic, Reusable (STAR)
 
@@ -237,16 +247,17 @@ Functions are:
 
 ### Adding a New Library
 
-1. Create `scripts/lib/lib-<purpose>.sh`
-2. Source `lib-core.sh` if needed
-3. Add re-sourcing guard: `if [ -n "${LIB_<NAME>_LOADED:-}" ]; then return 0; fi`
-4. Export guard: `export LIB_<NAME>_LOADED=1`
-5. Add auto-sourcing to `lib-core.sh` if it should be available everywhere
+1. Determine the appropriate layer (core/, util/, feature/, fs/, shell/, pkg/, domain/)
+2. Create the library file in the appropriate directory
+3. Source dependencies from lower layers
+4. Add re-sourcing guard: `if [ -n "${LIB_<NAME>_LOADED:-}" ]; then return 0; fi`
+5. Export guard: `export LIB_<NAME>_LOADED=1`
+6. Add to appropriate loader(s) if it should be auto-loaded
 
 ### Adding a New Installation Script
 
 1. Create `scripts/install/<script-name>.sh`
-2. Source `lib-core.sh` (which auto-sources other libraries)
+2. Source appropriate loader (`loaders/minimal.sh`, `loaders/standard.sh`, or `loaders/full.sh`)
 3. Use `parse_common_args "$@"` for argument handling
 4. Initialize temp directory: `init_temp_dir "script-name.XXXXXX"`
 5. Set up traps: `setup_traps cleanup_temp_dir`
@@ -371,7 +382,7 @@ The codebase includes comprehensive version detection and feature gates:
 
 - Secret files: 600 (read/write owner only)
 - Secret directories: 700 (read/write/execute owner only)
-- Constants defined in `lib-core.sh` for consistency
+- Constants defined in `core/constants.sh` for consistency
 
 ### Path Validation
 
@@ -472,7 +483,7 @@ Example:
 
 1. **Scripts can't find libraries**
    - Ensure `SCRIPTS_DIR` is set correctly
-   - Check that `lib-core.sh` exists at `$SCRIPTS_DIR/lib/lib-core.sh`
+   - Check that the appropriate loader exists at `$SCRIPTS_DIR/lib/loaders/`
 
 2. **Permission errors**
    - Check file permissions on scripts (should be executable)

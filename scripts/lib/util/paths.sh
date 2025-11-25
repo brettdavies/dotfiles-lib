@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Path and directory utilities library
 # Provides functions for determining dotfiles directory and common path variables
-# Requires: lib-os.sh (for detect_os)
+# Requires: core/detect-os.sh (for detect_os)
 
 # Prevent re-sourcing
 if [ -n "${LIB_PATHS_LOADED:-}" ]; then
@@ -11,7 +11,8 @@ export LIB_PATHS_LOADED=1
 
 # Source OS detection if not already sourced
 if ! command -v detect_os &> /dev/null; then
-    source "$(dirname "$0")/lib-os.sh"
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/detect-os.sh" 2>/dev/null || true
 fi
 
 # ============================================================================

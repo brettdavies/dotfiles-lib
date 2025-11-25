@@ -14,24 +14,46 @@ dotfiles/
 │  
 └── scripts/  
     ├── lib/                              # Shared library functions
-    │   ├── lib-core.sh                   # Main orchestrator (loads all core libraries)
-    │   ├── lib-constants.sh              # Color and permission constants
-    │   ├── lib-os.sh                     # OS and shell detection
-    │   ├── lib-paths.sh                  # Path utilities and common variables
-    │   ├── lib-args.sh                   # Common argument parsing
-    │   ├── lib-verbose.sh                # Verbose output helpers
-    │   ├── lib-shell.sh                  # Modern shell features (readarray helpers)
-    │   ├── lib-errors.sh                 # Error handling and reporting
-    │   ├── lib-logging.sh                # Structured logging system
-    │   ├── lib-temp.sh                   # Temporary directory management (single directory per script)
-    │   ├── lib-filesystem.sh             # File system operations (find, cache, etc.)
-    │   ├── lib-progress.sh               # Progress indicators (ConEmu OSC 9;4)
-    │   ├── lib-validation.sh             # Input validation and sanitization
-    │   ├── lib-rollback.sh               # Rollback/undo functionality
-    │   ├── lib-file.sh                   # File operations
-    │   ├── lib-packages.sh               # Package checking with caching
-    │   ├── lib-stow.sh                   # Stow operations
-    │   └── lib-sync.sh                   # Sync operations
+    │   ├── loaders/                      # Library loaders
+    │   │   ├── minimal.sh                # Minimal loader (core + basic output + args)
+    │   │   ├── standard.sh               # Standard loader (minimal + common features)
+    │   │   └── full.sh                   # Full loader (everything)
+    │   ├── core/                         # Core layer (no dependencies)
+    │   │   ├── constants.sh              # Color and permission constants
+    │   │   ├── detect-os.sh              # OS detection
+    │   │   └── detect-shell.sh           # Shell detection and version checking
+    │   ├── util/                         # Utility layer
+    │   │   ├── output.sh                 # Basic output functions
+    │   │   ├── timestamp.sh              # Timestamp generation
+    │   │   ├── paths.sh                  # Path utilities and common variables
+    │   │   └── args.sh                   # Common argument parsing
+    │   ├── feature/                      # Feature layer
+    │   │   ├── traps.sh                  # Trap handlers and signal handling
+    │   │   ├── temp.sh                   # Temporary directory management
+    │   │   ├── logging.sh                # Structured logging system
+    │   │   ├── verbose.sh                # Verbose output helpers
+    │   │   ├── progress.sh               # Progress indicators
+    │   │   ├── validation.sh             # Input validation and sanitization
+    │   │   └── rollback.sh               # Rollback/undo functionality
+    │   ├── fs/                           # Filesystem layer
+    │   │   ├── file-ops.sh               # File operations and permissions
+    │   │   ├── find.sh                   # Optimized file system operations
+    │   │   └── zsh-globs.sh              # Zsh-specific glob operations
+    │   ├── shell/                        # Shell compatibility layer
+    │   │   ├── zsh-modules.sh            # Zsh module loading
+    │   │   ├── arrays.sh                 # Array manipulation helpers
+    │   │   └── strings.sh                # String manipulation functions
+    │   ├── pkg/                          # Package management layer
+    │   │   ├── cache.sh                  # Package status caching
+    │   │   ├── brew.sh                   # Homebrew package/cask checking
+    │   │   ├── extensions.sh             # VS Code/Cursor extension checking
+    │   │   ├── version.sh                # Version comparison functions
+    │   │   └── version-constraints.sh    # Version constraints and YAML parsing
+    │   └── domain/                       # Domain-specific operations
+    │       ├── stow.sh                   # Stow operations
+    │       ├── sync.sh                   # Basic sync operations
+    │       ├── sync-backup.sh            # Backup creation for sync
+    │       └── sync-merge.sh             # Merge/diff3 operations for sync
     │  
     ├── install/                          # Installation scripts
     │   ├── check-dependencies.sh         # Check and install dependencies
@@ -113,14 +135,15 @@ All scripts should source libraries using the following pattern:
 ```bash
 # For scripts in subdirectories (install/, check/, test/)
 SCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-source "$SCRIPTS_DIR/lib/lib-core.sh"
-source "$SCRIPTS_DIR/lib/lib-<other>.sh"
+# Choose appropriate loader based on needs:
+source "$SCRIPTS_DIR/lib/loaders/minimal.sh"    # For simple scripts
+source "$SCRIPTS_DIR/lib/loaders/standard.sh"   # For most install scripts
+source "$SCRIPTS_DIR/lib/loaders/full.sh"       # For scripts needing everything
 
 # For library files in lib/
-# They can use relative paths since they're in the same directory
-if [ -z "${DOTFILES_DIR:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
-fi
+# They can use relative paths within their layer or to lower layers
+# Example: feature/temp.sh sourcing util/output.sh
+source "$(dirname "$0")/../util/output.sh"
 ```
 
 ## Migration Notes
@@ -157,10 +180,11 @@ All scripts have been updated to use the new paths:
 
 ### Adding New Library Files
 
-1. Place in `scripts/lib/`
-2. Follow naming: `lib-<purpose>.sh`
-3. Source `lib-core.sh` if needed (use relative path within `lib/`)
-4. Update this file tree
+1. Determine appropriate layer (core/, util/, feature/, fs/, shell/, pkg/, domain/)
+2. Place file in appropriate directory
+3. Source dependencies from lower layers using relative paths
+4. Add to appropriate loader(s) if it should be auto-loaded
+5. Update this file tree
 
 ### Adding New Installation Scripts
 

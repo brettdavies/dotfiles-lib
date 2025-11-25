@@ -9,8 +9,8 @@ load 'test_helper'
 # ============================================================================
 
 @test "rollback: init_rollback initializes rollback system" {
-    load_lib "lib-temp"
-    load_lib "lib-rollback"
+    load_lib "full"
+    load_lib "full"
     
     init_temp_dir "rollback-test.XXXXXX"
     run init_rollback
@@ -18,8 +18,8 @@ load 'test_helper'
 }
 
 @test "rollback: record_operation records an operation" {
-    load_lib "lib-temp"
-    load_lib "lib-rollback"
+    load_lib "full"
+    load_lib "full"
     
     init_temp_dir "rollback-test.XXXXXX"
     init_rollback
@@ -29,8 +29,8 @@ load 'test_helper'
 }
 
 @test "rollback: record_file_backup records file backup" {
-    load_lib "lib-temp"
-    load_lib "lib-rollback"
+    load_lib "full"
+    load_lib "full"
     
     init_temp_dir "rollback-test.XXXXXX"
     init_rollback
@@ -45,8 +45,8 @@ load 'test_helper'
 }
 
 @test "rollback: record_symlink_creation records symlink" {
-    load_lib "lib-temp"
-    load_lib "lib-rollback"
+    load_lib "full"
+    load_lib "full"
     
     init_temp_dir "rollback-test.XXXXXX"
     init_rollback
@@ -61,8 +61,8 @@ load 'test_helper'
 }
 
 @test "rollback: get_rollback_script generates rollback script" {
-    load_lib "lib-temp"
-    load_lib "lib-rollback"
+    load_lib "full"
+    load_lib "full"
     
     init_temp_dir "rollback-test.XXXXXX"
     init_rollback
@@ -76,8 +76,8 @@ load 'test_helper'
 }
 
 @test "rollback: finalize_rollback completes rollback setup" {
-    load_lib "lib-temp"
-    load_lib "lib-rollback"
+    load_lib "full"
+    load_lib "full"
     
     init_temp_dir "rollback-test.XXXXXX"
     init_rollback

@@ -21,13 +21,9 @@ TEST_DIR="$SCRIPT_DIR"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RESULTS_DIR="$REPO_ROOT/scripts/test/results"
 
-# Source lib-shell.sh for datetime helpers (if available)
-if [ -f "$REPO_ROOT/scripts/lib/lib-shell.sh" ]; then
-    # Source lib-os.sh first (required by lib-shell.sh)
-    if [ -f "$REPO_ROOT/scripts/lib/lib-os.sh" ]; then
-        source "$REPO_ROOT/scripts/lib/lib-os.sh" 2>/dev/null || true
-    fi
-    source "$REPO_ROOT/scripts/lib/lib-shell.sh" 2>/dev/null || true
+# Source timestamp helpers (if available)
+if [ -f "$REPO_ROOT/scripts/lib/util/timestamp.sh" ]; then
+    source "$REPO_ROOT/scripts/lib/util/timestamp.sh" 2>/dev/null || true
 fi
 
 # Ensure results directory exists
@@ -142,33 +138,31 @@ else
     echo "Running all tests in $TEST_DIR" >&2
 fi
 
-# Run BATS tests and capture output to both terminal and file
-# Use a temporary file to capture output, then tee it
-TEMP_OUTPUT=$(mktemp)
-trap "rm -f '$TEMP_OUTPUT'" EXIT
+# Run BATS tests and capture output to both terminal and results file
+# Write directly to results file using tee
 
+# Use get_timestamp if available, otherwise fallback to date
+start_time=""
+if command -v get_timestamp &> /dev/null; then
+    start_time=$(get_timestamp)
+else
+    start_time=$(date '+%Y-%m-%d %H:%M:%S')
+fi
 {
-    # Use get_timestamp if available, otherwise fallback to date
-    local start_time
-    if command -v get_timestamp &> /dev/null; then
-        start_time=$(get_timestamp)
-    else
-        start_time=$(date '+%Y-%m-%d %H:%M:%S')
-    fi
     echo "Test run started: $start_time"
     echo "Shell: $SHELL_NAME $SHELL_VERSION"
     echo "Test files: ${TEST_FILES[*]}"
     echo "---"
     echo ""
     
-    # Run tests and capture both output and exit code
+    # Run tests and capture both output and exit code, writing to both results file and terminal
     bats "${TEST_FILES[@]}" 2>&1
     TEST_EXIT_CODE=$?
     
     echo ""
     echo "---"
     # Use get_timestamp if available, otherwise fallback to date
-    local end_time
+    end_time=""
     if command -v get_timestamp &> /dev/null; then
         end_time=$(get_timestamp)
     else
@@ -176,10 +170,7 @@ trap "rm -f '$TEMP_OUTPUT'" EXIT
     fi
     echo "Test run completed: $end_time"
     echo "Exit code: $TEST_EXIT_CODE"
-} > "$TEMP_OUTPUT" 2>&1
-
-# Display output to terminal and write to results file
-cat "$TEMP_OUTPUT" | tee "$RESULT_FILE"
+} | tee "$RESULT_FILE"
 
 # Display final status
 if [ $TEST_EXIT_CODE -eq 0 ]; then

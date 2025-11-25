@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Argument parsing library
 # Provides functions for parsing common command-line arguments
-# Requires: lib-constants.sh (for potential future use)
+# Requires: core/constants.sh (for colors in error messages)
 
 # Prevent re-sourcing
 if [ -n "${LIB_ARGS_LOADED:-}" ]; then
@@ -11,7 +11,8 @@ export LIB_ARGS_LOADED=1
 
 # Source constants if not already sourced
 if [ -z "${RED:-}" ] || [ -z "${GREEN:-}" ] || [ -z "${YELLOW:-}" ] || [ -z "${NC:-}" ]; then
-    source "$(dirname "$0")/lib-constants.sh"
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/constants.sh" 2>/dev/null || true
 fi
 
 # ============================================================================

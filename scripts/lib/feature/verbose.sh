@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verbose output helpers library
 # Provides standardized verbose output functions for consistent formatting
-# Requires: lib-constants.sh (for colors), lib-args.sh (for VERBOSE flag)
+# Requires: core/constants.sh (for colors), util/args.sh (for VERBOSE flag)
 
 # Prevent re-sourcing
 if [ -n "${LIB_VERBOSE_LOADED:-}" ]; then
@@ -11,7 +11,8 @@ export LIB_VERBOSE_LOADED=1
 
 # Source constants if not already sourced
 if [ -z "${RED:-}" ] || [ -z "${GREEN:-}" ] || [ -z "${YELLOW:-}" ] || [ -z "${NC:-}" ]; then
-    source "$(dirname "$0")/lib-constants.sh"
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/constants.sh" 2>/dev/null || true
 fi
 
 # Ensure VERBOSE variable exists (default to false if not set)

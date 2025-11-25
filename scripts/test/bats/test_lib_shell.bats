@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "shell: read_lines_into_array reads file into array" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     local test_file
     test_file=$(mktemp)
@@ -27,7 +27,7 @@ load 'test_helper'
 }
 
 @test "shell: read_lines_into_array handles empty file" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     local test_file
     test_file=$(mktemp)
@@ -42,7 +42,7 @@ load 'test_helper'
 }
 
 @test "shell: read_lines_into_array works with or without nameref" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     # This test verifies that read_lines_into_array works regardless of nameref support
     # It should use nameref when available, eval fallback when not
@@ -63,7 +63,7 @@ load 'test_helper'
 }
 
 @test "shell: read_lines_into_array fallback works correctly" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     # Test that the function produces correct results even when using fallback
     # This verifies backward compatibility
@@ -87,7 +87,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "shell: split_string splits string by delimiter (works with zsh and bash)" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     # This test verifies split_string works with both zsh parameter expansion and bash IFS fallback
     local test_array
@@ -100,7 +100,7 @@ load 'test_helper'
 }
 
 @test "shell: split_string fallback produces same results" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     # Test with different delimiters to verify fallback works
     local test_array1 test_array2
@@ -115,7 +115,7 @@ load 'test_helper'
 }
 
 @test "shell: join_array joins array with delimiter" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     local test_array=(a b c)
     local result
@@ -125,7 +125,7 @@ load 'test_helper'
 }
 
 @test "shell: uppercase_string converts to uppercase (zsh and fallback)" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     # Test that uppercase_string works with both zsh parameter expansion and tr fallback
     local result
@@ -139,7 +139,7 @@ load 'test_helper'
 }
 
 @test "shell: lowercase_string converts to lowercase (zsh and fallback)" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     # Test that lowercase_string works with both zsh parameter expansion and tr fallback
     local result
@@ -157,7 +157,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "shell: zsh modules load when running under zsh" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     # Skip if not running under zsh
     is_zsh || skip "Not running under zsh"

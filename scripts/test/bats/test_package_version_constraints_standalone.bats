@@ -5,7 +5,7 @@
 load 'test_helper'
 
 @test "packages: get_package_version_constraints reads target_version from yaml" {
-    load_lib "lib-packages"
+    load_lib "full"
     
     # Skip if yq is not available
     if ! command -v yq &> /dev/null; then
@@ -54,7 +54,7 @@ EOF
 }
 
 @test "packages: get_package_version_constraints handles brew_target_version override" {
-    load_lib "lib-packages"
+    load_lib "full"
     
     # Skip if yq is not available
     if ! command -v yq &> /dev/null; then
@@ -103,7 +103,7 @@ EOF
 }
 
 @test "packages: get_package_version_constraints falls back to min_version" {
-    load_lib "lib-packages"
+    load_lib "full"
     
     # Skip if yq is not available
     if ! command -v yq &> /dev/null; then

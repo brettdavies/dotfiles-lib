@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "constants: color constants are defined" {
-    load_lib "lib-constants"
+    load_lib "full"
     
     [ -n "$RED" ]
     [ -n "$GREEN" ]
@@ -18,7 +18,7 @@ load 'test_helper'
 }
 
 @test "constants: permission constants are defined" {
-    load_lib "lib-constants"
+    load_lib "full"
     
     [ "$PERM_SECRET_FILE" = "600" ]
     [ "$PERM_SECRET_DIR" = "700" ]
@@ -31,7 +31,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "os: detect_os returns valid OS" {
-    load_lib "lib-os"
+    load_lib "full"
     
     run detect_os
     assert_success
@@ -46,7 +46,7 @@ load 'test_helper'
 }
 
 @test "os: is_zsh detects zsh correctly" {
-    load_lib "lib-os"
+    load_lib "full"
     
     # Test when running under zsh
     if [ -n "${ZSH_VERSION:-}" ]; then
@@ -64,7 +64,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "paths: get_dotfiles_dir returns absolute path" {
-    load_lib "lib-paths"
+    load_lib "full"
     
     # Test that get_dotfiles_dir returns an absolute path
     local result
@@ -73,28 +73,28 @@ load 'test_helper'
 }
 
 @test "paths: DOTFILES_DIR is set after loading lib-paths" {
-    load_lib "lib-paths"
+    load_lib "full"
     
     [ -n "$DOTFILES_DIR" ]
     [ -d "$DOTFILES_DIR" ]
 }
 
 @test "paths: STOW_DIR is set correctly" {
-    load_lib "lib-paths"
+    load_lib "full"
     
     [ -n "$STOW_DIR" ]
     [ "$STOW_DIR" = "$DOTFILES_DIR/stow" ]
 }
 
 @test "paths: SCRIPTS_DIR is set correctly" {
-    load_lib "lib-paths"
+    load_lib "full"
     
     [ -n "$SCRIPTS_DIR" ]
     [ "$SCRIPTS_DIR" = "$DOTFILES_DIR/scripts" ]
 }
 
 @test "paths: OS is set after loading lib-paths" {
-    load_lib "lib-paths"
+    load_lib "full"
     
     [ -n "${OS:-}" ]
     case "${OS:-}" in
@@ -112,7 +112,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "args: parse_common_args sets DRY_RUN flag" {
-    load_lib "lib-args"
+    load_lib "full"
     
     parse_common_args --dry-run
     [ "$DRY_RUN" = "true" ]
@@ -120,7 +120,7 @@ load 'test_helper'
 }
 
 @test "args: parse_common_args sets VERBOSE flag" {
-    load_lib "lib-args"
+    load_lib "full"
     
     parse_common_args --verbose
     [ "$VERBOSE" = "true" ]
@@ -128,35 +128,35 @@ load 'test_helper'
 }
 
 @test "args: parse_common_args sets VERBOSE flag with -v" {
-    load_lib "lib-args"
+    load_lib "full"
     
     parse_common_args -v
     [ "$VERBOSE" = "true" ]
 }
 
 @test "args: parse_common_args sets SYNC_LOCAL flag" {
-    load_lib "lib-args"
+    load_lib "full"
     
     parse_common_args --sync-local
     [ "$SYNC_LOCAL" = "true" ]
 }
 
 @test "args: parse_common_args sets SYNC_MERGE flag" {
-    load_lib "lib-args"
+    load_lib "full"
     
     parse_common_args --merge
     [ "$SYNC_MERGE" = "true" ]
 }
 
 @test "args: parse_common_args sets NO_PROGRESS flag" {
-    load_lib "lib-args"
+    load_lib "full"
     
     parse_common_args --no-progress
     [ "$NO_PROGRESS" = "true" ]
 }
 
 @test "args: parse_common_args handles multiple flags" {
-    load_lib "lib-args"
+    load_lib "full"
     
     parse_common_args --dry-run --verbose --sync-local
     [ "$DRY_RUN" = "true" ]
@@ -165,7 +165,7 @@ load 'test_helper'
 }
 
 @test "args: parse_common_args ignores unknown arguments" {
-    load_lib "lib-args"
+    load_lib "full"
     
     parse_common_args --unknown-arg --dry-run
     [ "$DRY_RUN" = "true" ]
@@ -176,7 +176,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "verbose: verbose_found outputs when VERBOSE is true" {
-    load_lib "lib-verbose"
+    load_lib "full"
     
     VERBOSE=true
     run verbose_found "Test Item"
@@ -185,7 +185,7 @@ load 'test_helper'
 }
 
 @test "verbose: verbose_found does not output when VERBOSE is false" {
-    load_lib "lib-verbose"
+    load_lib "full"
     
     VERBOSE=false
     run verbose_found "Test Item"
@@ -194,7 +194,7 @@ load 'test_helper'
 }
 
 @test "verbose: verbose_missing outputs when VERBOSE is true" {
-    load_lib "lib-verbose"
+    load_lib "full"
     
     VERBOSE=true
     run verbose_missing "Test Item"
@@ -203,7 +203,7 @@ load 'test_helper'
 }
 
 @test "verbose: verbose_would_create outputs when VERBOSE is true" {
-    load_lib "lib-verbose"
+    load_lib "full"
     
     VERBOSE=true
     run verbose_would_create "~/.testfile"
@@ -212,7 +212,7 @@ load 'test_helper'
 }
 
 @test "verbose: verbose_already_exists outputs when VERBOSE is true" {
-    load_lib "lib-verbose"
+    load_lib "full"
     
     VERBOSE=true
     run verbose_already_exists ".testfile" "permissions: 600"
@@ -225,7 +225,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "shell: read_lines_into_array reads from file" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     local test_file="$BATS_TEST_TMPDIR/test.txt"
     echo -e "line1\nline2\nline3" > "$test_file"
@@ -240,7 +240,7 @@ load 'test_helper'
 }
 
 @test "shell: read_lines_into_array reads from command" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     local test_array
     read_lines_into_array test_array "echo -e 'line1\nline2'"
@@ -251,7 +251,7 @@ load 'test_helper'
 }
 
 @test "shell: read_null_delimited_into_array handles null-delimited input" {
-    load_lib "lib-shell"
+    load_lib "full"
     
     local test_array
     read_null_delimited_into_array test_array "printf 'file1\0file2\0file3\0'"

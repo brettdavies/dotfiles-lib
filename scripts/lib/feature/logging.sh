@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Structured logging system
 # Provides functions for logging to files with timestamps and log levels
-# Requires: lib-core.sh (for VERBOSE flag, colors)
+# Requires: core/constants.sh (for colors), util/args.sh (for VERBOSE flag), util/timestamp.sh (for get_timestamp)
 
 # Prevent re-sourcing
 if [ -n "${LIB_LOGGING_LOADED:-}" ]; then
@@ -9,11 +9,14 @@ if [ -n "${LIB_LOGGING_LOADED:-}" ]; then
 fi
 export LIB_LOGGING_LOADED=1
 
-# Source core library if not already sourced
-# Check if colors are defined (indicates lib-core.sh has been sourced)
+# Source constants if not already sourced
 if [ -z "${RED:-}" ] || [ -z "${GREEN:-}" ] || [ -z "${YELLOW:-}" ] || [ -z "${NC:-}" ]; then
-    source "$(dirname "$0")/lib-core.sh"
+    _SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$_SOURCE_DIR/../core/constants.sh" 2>/dev/null || true
 fi
+
+# Ensure VERBOSE variable exists (default to false if not set)
+: "${VERBOSE:=false}"
 
 # ============================================================================
 # Structured logging system
@@ -79,7 +82,7 @@ init_logging() {
 #   log_info "Creating symlink: $file"
 log_info() {
     local message="$1"
-    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    # Use get_timestamp if available, otherwise fallback to date
     local timestamp
     if command -v get_timestamp &> /dev/null; then
         timestamp=$(get_timestamp)
@@ -116,7 +119,7 @@ log_info() {
 #   log_warn "Skipping binary file: $file"
 log_warn() {
     local message="$1"
-    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    # Use get_timestamp if available, otherwise fallback to date
     local timestamp
     if command -v get_timestamp &> /dev/null; then
         timestamp=$(get_timestamp)
@@ -151,7 +154,7 @@ log_warn() {
 #   log_error "File not found: $file"
 log_error() {
     local message="$1"
-    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    # Use get_timestamp if available, otherwise fallback to date
     local timestamp
     if command -v get_timestamp &> /dev/null; then
         timestamp=$(get_timestamp)
@@ -186,7 +189,7 @@ log_error() {
 #   log_debug "Cache hit for package: $package"
 log_debug() {
     local message="$1"
-    # Use get_timestamp if available (from lib-shell.sh), otherwise fallback to date
+    # Use get_timestamp if available, otherwise fallback to date
     local timestamp
     if command -v get_timestamp &> /dev/null; then
         timestamp=$(get_timestamp)
