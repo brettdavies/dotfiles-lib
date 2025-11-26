@@ -8,24 +8,19 @@ if [ -f ~/.secrets ]; then
     . ~/.secrets
 fi
 
-# Add Homebrew to PATH (macOS)
-# This must be done early so brew command is available for other scripts
+# Initialize Homebrew shell environment (macOS only)
+# This ensures Homebrew PATH is available in all shells (login and interactive)
+# Supports both /opt/homebrew (Apple Silicon) and /usr/local (Intel)
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    export HOMEBREW_NO_ENV_HINTS=1
-    # Check for Homebrew in standard locations
-    if [ -d "/opt/homebrew/bin" ]; then
-        export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
-        # Add Homebrew Python unversioned symlinks (python3, pip3, etc.) to PATH
-        # This ensures Homebrew's Python is used instead of system/framework Python
-        if [ -d "/opt/homebrew/opt/python@3.12/libexec/bin" ]; then
-            export PATH="/opt/homebrew/opt/python@3.12/libexec/bin:$PATH"
-        fi
-    elif [ -d "/usr/local/bin" ]; then
-        # Legacy Homebrew location (Intel Macs)
-        export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
-        # Add Homebrew Python unversioned symlinks (python3, pip3, etc.) to PATH
-        if [ -d "/usr/local/opt/python@3.12/libexec/bin" ]; then
-            export PATH="/usr/local/opt/python@3.12/libexec/bin:$PATH"
+    # Only set up if not already set (avoid duplicate PATH entries)
+    # This prevents issues if .zprofile or .bash_profile already set it up
+    if [[ -z "${HOMEBREW_PREFIX:-}" ]]; then
+        export HOMEBREW_NO_ENV_HINTS=1
+        # Check for brew in standard locations (don't rely on PATH)
+        if [ -f /opt/homebrew/bin/brew ]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        elif [ -f /usr/local/bin/brew ]; then
+            eval "$(/usr/local/bin/brew shellenv)"
         fi
     fi
 fi
@@ -82,3 +77,4 @@ export PATH="$PATH:$HOME/.lmstudio/bin"
 
 # GitHub PR line comments alias
 alias gh-pr-comments='gh api repos/$(gh repo view --json owner,name --jq '"'"'.owner.login + "/" + .name'"'"')/pulls/$1/comments --jq '"'"'.[] | {author: .user.login, body: .body, path: .path, line: .line, position: .position}'"'"''
+

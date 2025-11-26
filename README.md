@@ -98,6 +98,7 @@ The library system uses a modular, layered architecture with three loader option
 
 ```plaintext
 stow/
+├── shell/        # Shared shell configs (.profile)
 ├── zsh/          # Zsh configs (.zshrc, .zprofile, .p10k.zsh)
 ├── bash/         # Bash configs (.bashrc, .bash_profile)
 ├── git/          # Git config (.gitconfig, .config/git/*)
@@ -200,7 +201,7 @@ If you don't want to use the install script, you can manually stow each package:
 
    ```bash
    cd ~/dotfiles/stow
-   stow -t ~ zsh bash git ssh ghostty gh oh-my-zsh
+   stow -t ~ shell zsh bash git ssh ghostty gh oh-my-zsh
    ```
 
 For VS Code on macOS:
@@ -235,7 +236,7 @@ After making changes to your dotfiles in the repository:
 
    ```bash
    cd ~/dotfiles/stow
-   stow -t ~ -R zsh bash git ssh ghostty gh oh-my-zsh
+   stow -t ~ -R shell zsh bash git ssh ghostty gh oh-my-zsh
    ```
 
    Or simply run the install script again:

@@ -594,16 +594,19 @@ if [ "$DRY_RUN" != true ] && [ "$SYNC_LOCAL" != true ]; then
     [ -d "$STOW_DIR/vscode" ] && ((total_packages++))
 fi
 
-# Shell configs
+# Shell configs (shared and shell-specific)
 if [ "$DRY_RUN" = true ]; then
+    stow_package shell "Shared shell configs (.profile)"
     stow_package zsh "Shell configs (zsh, bash)"
     stow_package bash ""
 else
+    output_shell=$(stow_package shell 2>&1)
     output_zsh=$(stow_package zsh 2>&1)
     output_bash=$(stow_package bash 2>&1)
-    if [ -n "${output_zsh// }" ] || [ -n "${output_bash// }" ]; then
-        echo "  - Shell configs (zsh, bash)"
-        log_info "Shell configs (zsh, bash)"
+    if [ -n "${output_shell// }" ] || [ -n "${output_zsh// }" ] || [ -n "${output_bash// }" ]; then
+        echo "  - Shell configs (shared, zsh, bash)"
+        log_info "Shell configs (shared, zsh, bash)"
+        [ -n "${output_shell// }" ] && echo "$output_shell" && log_info "$output_shell"
         [ -n "${output_zsh// }" ] && echo "$output_zsh" && log_info "$output_zsh"
         [ -n "${output_bash// }" ] && echo "$output_bash" && log_info "$output_bash"
     fi
