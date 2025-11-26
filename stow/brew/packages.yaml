@@ -49,6 +49,11 @@ packages:
     linux:
       pkg: coreutils
   
+  git-crypt:
+    brew: git-crypt
+    linux:
+      pkg: git-crypt
+  
   libpq:
     brew: libpq
     linux:
