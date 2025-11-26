@@ -30,40 +30,50 @@ repo_uses_git_crypt() {
 # Install git hooks for automatic unlock
 install_git_hooks() {
     local hooks_dir="$DOTFILES_DIR/.git/hooks"
+    local repo_hooks_dir="$DOTFILES_DIR/scripts/git-hooks"
     
     if [ ! -d "$hooks_dir" ]; then
         log_warn "Git hooks directory not found: $hooks_dir"
         return 1
     fi
     
-    local hook_content='#!/bin/bash
-if command -v git-crypt &> /dev/null; then
-    if [ -f ~/.config/git-crypt/key ]; then
-        if git-crypt status 2>/dev/null | grep -q "not unlocked"; then
-            git-crypt unlock ~/.config/git-crypt/key 2>/dev/null || true
-        fi
+    if [ ! -d "$repo_hooks_dir" ]; then
+        log_warn "Repository hooks directory not found: $repo_hooks_dir"
+        return 1
     fi
-fi
-'
     
     # Install post-checkout hook
+    local source_hook="$repo_hooks_dir/post-checkout"
+    local target_hook="$hooks_dir/post-checkout"
+    
     if [ "$DRY_RUN" = true ]; then
-        verbose_would_create "$hooks_dir/post-checkout"
-        log_info "[DRY RUN] Would install post-checkout hook"
+        verbose_would_create "$target_hook"
+        log_info "[DRY RUN] Would install post-checkout hook from $source_hook"
     else
-        echo "$hook_content" > "$hooks_dir/post-checkout"
-        chmod +x "$hooks_dir/post-checkout"
-        log_info "Installed post-checkout hook"
+        if [ -f "$source_hook" ]; then
+            cp "$source_hook" "$target_hook"
+            chmod +x "$target_hook"
+            log_info "Installed post-checkout hook from repository"
+        else
+            log_warn "Source hook not found: $source_hook"
+        fi
     fi
     
     # Install post-merge hook
+    source_hook="$repo_hooks_dir/post-merge"
+    target_hook="$hooks_dir/post-merge"
+    
     if [ "$DRY_RUN" = true ]; then
-        verbose_would_create "$hooks_dir/post-merge"
-        log_info "[DRY RUN] Would install post-merge hook"
+        verbose_would_create "$target_hook"
+        log_info "[DRY RUN] Would install post-merge hook from $source_hook"
     else
-        echo "$hook_content" > "$hooks_dir/post-merge"
-        chmod +x "$hooks_dir/post-merge"
-        log_info "Installed post-merge hook"
+        if [ -f "$source_hook" ]; then
+            cp "$source_hook" "$target_hook"
+            chmod +x "$target_hook"
+            log_info "Installed post-merge hook from repository"
+        else
+            log_warn "Source hook not found: $source_hook"
+        fi
     fi
 }
 
