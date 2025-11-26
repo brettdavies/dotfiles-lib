@@ -45,3 +45,6 @@
 
 stow/ssh/dot-ssh/config
 **/test/results
+
+# Log files
+scripts/sync/logs/*.log

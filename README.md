@@ -338,7 +338,8 @@ The install script automatically creates symlinks from brew packages to `~/.oh-m
 
 ### Local Bin
 
-- `.local/bin/env` - Local bin environment configuration
+- `.local/bin/env` - Local bin environment configuration (cross-platform)
+- `scripts/sync/sync_dev_to_icloud.sh` - Script to sync `~/dev` to iCloud Drive using rsync with hardlinks (**macOS only** - LaunchAgent points directly to it)
 
 ### Claude IDE
 
@@ -377,6 +378,98 @@ To update the Brewfile:
    brew bundle dump --force
    ```
 
+## iCloud Drive Sync (macOS Only)
+
+This repository includes an automated sync solution that syncs your `~/dev` directory to iCloud Drive using hardlinks. This allows files to exist in both locations while sharing disk space.
+
+### Features
+
+- **Automatic Sync**: Syncs every 5 minutes via macOS LaunchAgent
+- **Hardlinks**: Uses `rsync --link-dest` to create hardlinks, saving disk space
+- **Bidirectional**: Files exist in both `~/dev` and iCloud Drive
+- **Persistent**: Automatically starts on login and runs in the background
+
+### Components
+
+1. **Sync Script**: `~/dotfiles/scripts/sync/sync_dev_to_icloud.sh`
+   - Located in the `scripts/sync/` directory (outside of stow)
+   - Uses `rsync` with `--link-dest` to create hardlinks
+   - Syncs from `~/dev` to `~/Library/Mobile Documents/com~apple~CloudDocs/dev`
+   - Handles new files, deletions, moves, and renames
+
+2. **LaunchAgent**: `~/Library/LaunchAgents/com.user.devtosync.plist`
+   - Points directly to the script in the dotfiles repository
+   - Runs sync script every 5 minutes (300 seconds)
+   - Runs immediately on login (`RunAtLoad: true`)
+   - Logs to `~/dotfiles/scripts/sync/logs/devtosync.log`
+
+### Installation
+
+The LaunchAgent is automatically installed when you run `./install.sh` on macOS. It will **not** be installed on Linux systems.
+
+### Manual Setup (if needed)
+
+If you need to manually load the LaunchAgent:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.user.devtosync.plist
+```
+
+To unload (stop syncing):
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.user.devtosync.plist
+```
+
+### Logs
+
+Sync logs are written to:
+
+- Standard output: `~/dotfiles/scripts/sync/logs/devtosync.log`
+- Standard error: `~/dotfiles/scripts/sync/logs/devtosync.error.log`
+
+### Important Notes
+
+- **macOS Only**: This feature requires macOS and iCloud Drive. It will not work on Linux.
+- **Hardlinks**: Files are hardlinked, meaning they share the same disk space. Deleting from one location doesn't delete from the other until both links are removed.
+- **iCloud Sync Time**: Large files may take time to upload to iCloud. The sync script creates the files locally immediately, but iCloud upload happens asynchronously.
+- **Disk Space**: Hardlinks save disk space since files share the same inode. However, iCloud may treat hardlinks as separate files in the cloud.
+
+### Troubleshooting
+
+1. **Check if service is running**:
+
+   ```bash
+   launchctl list | grep com.user.devtosync
+   ```
+
+2. **View recent sync activity**:
+
+   ```bash
+   tail -20 ~/dotfiles/scripts/sync/logs/devtosync.log
+   ```
+
+3. **Check for errors**:
+
+   ```bash
+   cat ~/dotfiles/scripts/sync/logs/devtosync.error.log
+   ```
+
+4. **Manually trigger a sync**:
+
+   ```bash
+   ~/dotfiles/scripts/sync/sync_dev_to_icloud.sh
+   ```
+
+5. **Verify hardlinks are working**:
+
+   ```bash
+   # Check if files share the same inode
+   stat -f %i ~/dev/some-file
+   stat -f %i ~/Library/Mobile\ Documents/com~apple~CloudDocs/dev/some-file
+   # If inode numbers match, hardlinks are working
+   ```
+
 ## Secrets Management
 
 The `.secrets` file is created empty with 600 permissions. This file is **not** tracked in git (see `.gitignore`).
@@ -392,6 +485,7 @@ These dotfiles are designed to work on both **macOS** and **Linux**. The install
 - **VS Code settings**: Only installed on macOS (uses `Library/Application Support/Code/User`)
 - **1Password SSH signing**: The `.gitconfig` includes a macOS path for 1Password SSH signing (`/Applications/1Password.app/...`). On Linux, you may need to adjust this path or comment it out if using a different SSH signing method.
 - **1Password SSH agent**: The `.ssh/config` includes macOS-specific 1Password agent path. On Linux, comment it out or adjust as needed.
+- **iCloud Drive Sync**: A LaunchAgent (`com.user.devtosync.plist`) is configured to automatically sync `~/dev` to iCloud Drive every 5 minutes using `rsync` with hardlinks. This feature is **macOS-only** and will not be installed on Linux systems. See [iCloud Drive Sync](#icloud-drive-sync) section for details.
 
 ### Linux-Specific Notes
 
