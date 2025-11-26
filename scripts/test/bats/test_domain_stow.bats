@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Tests for Stow operations library
-# Tests: lib-stow.sh
+# Tests: domain/stow.sh
 
 load 'test_helper'
 
@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "stow: transform_dotfiles_path converts dot- to ." {
-    load_lib "full"
+    load_lib "domain/stow"
     
     run transform_dotfiles_path "dot-zshrc"
     assert_success
@@ -17,7 +17,7 @@ load 'test_helper'
 }
 
 @test "stow: transform_dotfiles_path handles nested paths" {
-    load_lib "full"
+    load_lib "domain/stow"
     
     run transform_dotfiles_path "config/dot-git/config"
     assert_success
@@ -25,7 +25,7 @@ load 'test_helper'
 }
 
 @test "stow: normalize_path resolves absolute paths" {
-    load_lib "full"
+    load_lib "domain/stow"
     
     local test_dir="$BATS_TEST_TMPDIR/test"
     mkdir -p "$test_dir"
@@ -40,7 +40,7 @@ load 'test_helper'
 }
 
 @test "stow: normalize_path resolves relative paths" {
-    load_lib "full"
+    load_lib "domain/stow"
     
     local test_dir="$BATS_TEST_TMPDIR/test"
     mkdir -p "$test_dir"
@@ -56,7 +56,7 @@ load 'test_helper'
 }
 
 @test "stow: normalize_path handles . and .." {
-    load_lib "full"
+    load_lib "domain/stow"
     
     local test_dir="$BATS_TEST_TMPDIR/test"
     mkdir -p "$test_dir"
@@ -68,7 +68,7 @@ load 'test_helper'
 }
 
 @test "stow: check_dir_symlink detects directory symlink" {
-    load_lib "full"
+    load_lib "domain/stow"
     
     local target_dir="$BATS_TEST_TMPDIR/target"
     local link_dir="$BATS_TEST_TMPDIR/link"
@@ -80,7 +80,7 @@ load 'test_helper'
 }
 
 @test "stow: is_parent_dir_symlinked detects parent symlink" {
-    load_lib "full"
+    load_lib "domain/stow"
     
     # Set up a proper stow-like structure
     local test_home="$BATS_TEST_TMPDIR/home"

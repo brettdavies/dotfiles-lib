@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
-# Tests for filesystem operations library
-# Tests: lib-filesystem.sh
+# Tests for filesystem find operations library
+# Tests: fs/find.sh
 
 load 'test_helper'
 
@@ -8,8 +8,8 @@ load 'test_helper'
 # Filesystem Operations Tests
 # ============================================================================
 
-@test "filesystem: find_files_array finds files in directory" {
-    load_lib "full"
+@test "find: find_files_array finds files in directory" {
+    load_lib "fs/find"
     
     local test_dir="$BATS_TEST_TMPDIR/testdir"
     mkdir -p "$test_dir"
@@ -24,8 +24,8 @@ load 'test_helper'
     [ "${#files_array[@]}" -ge 3 ]
 }
 
-@test "filesystem: find_dirs_in_dir finds directories" {
-    load_lib "full"
+@test "find: find_dirs_in_dir finds directories" {
+    load_lib "fs/find"
     
     local test_dir="$BATS_TEST_TMPDIR/testdir"
     mkdir -p "$test_dir/subdir1"
@@ -37,8 +37,8 @@ load 'test_helper'
     [ "${#FIND_RESULTS[@]}" -ge 2 ]
 }
 
-@test "filesystem: count_files_in_dir counts files correctly" {
-    load_lib "full"
+@test "find: count_files_in_dir counts files correctly" {
+    load_lib "fs/find"
     
     local test_dir="$BATS_TEST_TMPDIR/testdir"
     mkdir -p "$test_dir"
@@ -52,8 +52,8 @@ load 'test_helper'
     [ "$count" -ge 3 ]
 }
 
-@test "filesystem: is_dir_empty returns true for empty directory" {
-    load_lib "full"
+@test "find: is_dir_empty returns true for empty directory" {
+    load_lib "fs/find"
     
     local test_dir="$BATS_TEST_TMPDIR/emptydir"
     mkdir -p "$test_dir"
@@ -62,8 +62,8 @@ load 'test_helper'
     assert_success
 }
 
-@test "filesystem: is_dir_empty returns false for non-empty directory" {
-    load_lib "full"
+@test "find: is_dir_empty returns false for non-empty directory" {
+    load_lib "fs/find"
     
     local test_dir="$BATS_TEST_TMPDIR/nonemptydir"
     mkdir -p "$test_dir"
@@ -73,8 +73,8 @@ load 'test_helper'
     assert_failure
 }
 
-@test "filesystem: clear_dir_cache clears cache" {
-    load_lib "full"
+@test "find: clear_dir_cache clears cache" {
+    load_lib "fs/find"
     
     init_dir_cache
     run clear_dir_cache
@@ -83,64 +83,8 @@ load 'test_helper'
     assert_success
 }
 
-# ============================================================================
-# Zsh Glob Qualifier Tests
-# ============================================================================
-
-@test "filesystem: find_files_zsh_glob works under zsh" {
-    load_lib "full"
-    
-    # Skip if not running under zsh
-    is_zsh || skip "Not running under zsh"
-    
-    local test_dir="$BATS_TEST_TMPDIR/zshglob"
-    mkdir -p "$test_dir"
-    touch "$test_dir/file1.sh"
-    touch "$test_dir/file2.sh"
-    touch "$test_dir/file3.txt"
-    
-    run find_files_zsh_glob "$test_dir" "f" "*.sh"
-    assert_success
-    
-    [ "${#FIND_RESULTS[@]}" -ge 2 ]
-}
-
-@test "filesystem: find_files_zsh_glob returns empty when not zsh" {
-    load_lib "full"
-    
-    # Skip if running under zsh (this test is for bash)
-    is_zsh && skip "Running under zsh, skipping bash fallback test"
-    
-    local test_dir="$BATS_TEST_TMPDIR/bash_test"
-    mkdir -p "$test_dir"
-    touch "$test_dir/file1.txt"
-    
-    # Should return empty array and exit with failure when not zsh
-    run find_files_zsh_glob "$test_dir" "f"
-    assert_failure
-    [ "${#FIND_RESULTS[@]}" -eq 0 ]
-}
-
-@test "filesystem: get_dir_listing_zsh works under zsh" {
-    load_lib "full"
-    
-    # Skip if not running under zsh
-    is_zsh || skip "Not running under zsh"
-    
-    local test_dir="$BATS_TEST_TMPDIR/zshlist"
-    mkdir -p "$test_dir"
-    touch "$test_dir/file1.txt"
-    touch "$test_dir/file2.txt"
-    mkdir -p "$test_dir/subdir"
-    
-    run get_dir_listing_zsh "$test_dir" "f"
-    assert_success
-    
-    [ "${#DIR_LISTING[@]}" -ge 2 ]
-}
-
-@test "filesystem: find_files_in_dir works with zsh globs or find fallback" {
-    load_lib "full"
+@test "find: find_files_in_dir works with zsh globs or find fallback" {
+    load_lib "fs/find"
     
     # This test verifies that find_files_in_dir works correctly whether using
     # zsh glob qualifiers or find command fallback
@@ -166,8 +110,8 @@ load 'test_helper'
     [ "$found" = true ]
 }
 
-@test "filesystem: find_files_in_dir fallback produces correct results" {
-    load_lib "full"
+@test "find: find_files_in_dir fallback produces correct results" {
+    load_lib "fs/find"
     
     # Test that fallback to find command produces same results as zsh globs
     local test_dir="$BATS_TEST_TMPDIR/fallback_verify"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Tests for logging library
-# Tests: lib-logging.sh
+# Tests: feature/logging.sh
 
 load 'test_helper'
 
@@ -9,7 +9,7 @@ load 'test_helper'
 # ============================================================================
 
 @test "logging: init_logging creates log file" {
-    load_lib "full"
+    load_lib "feature/logging"
     
     local log_file="$BATS_TEST_TMPDIR/test.log"
     init_logging "$log_file"
@@ -19,7 +19,7 @@ load 'test_helper'
 }
 
 @test "logging: log_info writes to log file when enabled" {
-    load_lib "full"
+    load_lib "feature/logging"
     
     local log_file="$BATS_TEST_TMPDIR/test.log"
     init_logging "$log_file"
@@ -31,7 +31,7 @@ load 'test_helper'
 }
 
 @test "logging: log_info outputs to stdout when VERBOSE is true" {
-    load_lib "full"
+    load_lib "feature/logging"
     
     VERBOSE=true
     local log_file="$BATS_TEST_TMPDIR/test.log"
@@ -43,7 +43,7 @@ load 'test_helper'
 }
 
 @test "logging: log_warn writes to log file and stderr" {
-    load_lib "full"
+    load_lib "feature/logging"
     
     local log_file="$BATS_TEST_TMPDIR/test.log"
     init_logging "$log_file"
@@ -55,7 +55,7 @@ load 'test_helper'
 }
 
 @test "logging: log_error writes to log file and stderr" {
-    load_lib "full"
+    load_lib "feature/logging"
     
     local log_file="$BATS_TEST_TMPDIR/test.log"
     init_logging "$log_file"
@@ -67,7 +67,7 @@ load 'test_helper'
 }
 
 @test "logging: log_debug writes to log file when enabled" {
-    load_lib "full"
+    load_lib "feature/logging"
     
     local log_file="$BATS_TEST_TMPDIR/test.log"
     init_logging "$log_file"
@@ -79,7 +79,7 @@ load 'test_helper'
 }
 
 @test "logging: log_debug outputs to stdout when VERBOSE is true" {
-    load_lib "full"
+    load_lib "feature/logging"
     
     VERBOSE=true
     local log_file="$BATS_TEST_TMPDIR/test.log"
@@ -91,7 +91,7 @@ load 'test_helper'
 }
 
 @test "logging: log functions work without log file" {
-    load_lib "full"
+    load_lib "feature/logging"
     
     # Don't initialize logging
     LOG_ENABLED=false

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
-# Tests for advanced OS and shell detection features
-# Tests: Bash version detection, feature detection
+# Tests for shell detection library
+# Tests: core/detect-shell.sh
 
 load 'test_helper'
 
@@ -8,8 +8,8 @@ load 'test_helper'
 # Bash Version Detection Tests
 # ============================================================================
 
-@test "os: get_bash_version returns version string" {
-    load_lib "full"
+@test "detect-shell: get_bash_version returns version string" {
+    load_lib "core/detect-shell"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -20,8 +20,8 @@ load 'test_helper'
     [[ "$output" =~ ^[0-9]+\.[0-9]+$ ]]
 }
 
-@test "os: compare_bash_version compares versions correctly" {
-    load_lib "full"
+@test "detect-shell: compare_bash_version compares versions correctly" {
+    load_lib "core/detect-shell"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -45,8 +45,8 @@ load 'test_helper'
     assert_success
 }
 
-@test "os: is_bash_4_plus detects Bash 4+" {
-    load_lib "full"
+@test "detect-shell: is_bash_4_plus detects Bash 4+" {
+    load_lib "core/detect-shell"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -57,8 +57,8 @@ load 'test_helper'
     [ $status -eq 0 ] || [ $status -eq 1 ]
 }
 
-@test "os: is_bash_5_2_plus detects Bash 5.2+" {
-    load_lib "full"
+@test "detect-shell: is_bash_5_2_plus detects Bash 5.2+" {
+    load_lib "core/detect-shell"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -72,16 +72,16 @@ load 'test_helper'
 # Feature Detection Tests
 # ============================================================================
 
-@test "os: has_nameref_support detects nameref availability" {
-    load_lib "full"
+@test "detect-shell: has_nameref_support detects nameref availability" {
+    load_lib "core/detect-shell"
     
     run has_nameref_support
     # Should succeed if nameref is supported, fail otherwise
     [ $status -eq 0 ] || [ $status -eq 1 ]
 }
 
-@test "os: has_wait_n_support detects wait -n availability" {
-    load_lib "full"
+@test "detect-shell: has_wait_n_support detects wait -n availability" {
+    load_lib "core/detect-shell"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -91,8 +91,8 @@ load 'test_helper'
     [ $status -eq 0 ] || [ $status -eq 1 ]
 }
 
-@test "os: has_xtracefd_support detects BASH_XTRACEFD availability" {
-    load_lib "full"
+@test "detect-shell: has_xtracefd_support detects BASH_XTRACEFD availability" {
+    load_lib "core/detect-shell"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
@@ -102,8 +102,8 @@ load 'test_helper'
     [ $status -eq 0 ] || [ $status -eq 1 ]
 }
 
-@test "os: has_mapfile_null_delim detects mapfile -d availability" {
-    load_lib "full"
+@test "detect-shell: has_mapfile_null_delim detects mapfile -d availability" {
+    load_lib "core/detect-shell"
     
     # Skip if not running under bash
     [ -n "${BASH_VERSION:-}" ] || skip "Not running under bash"
