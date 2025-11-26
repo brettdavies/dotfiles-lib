@@ -472,9 +472,34 @@ Sync logs are written to:
 
 ## Secrets Management
 
-The `.secrets` file is created empty with 600 permissions. This file is **not** tracked in git (see `.gitignore`).
+Sensitive files are encrypted using `git-crypt` with symmetric key encryption. The following files are encrypted:
 
-**Important**: Never commit secrets to this repository. The `.secrets` file should be managed separately on each machine.
+- `stow/secrets/dot-secrets` - Primary secrets file (API keys, tokens, passwords)
+- `stow/ssh/dot-ssh/config` - SSH host configurations
+- `stow/git/dot-config/git/allowed_signers` - SSH allowed signers
+
+### Setup
+
+1. **First-time setup:**
+   - The install script will automatically install `git-crypt` if needed
+   - Copy your git-crypt key file to `~/.config/git-crypt/key`
+   - The install script will automatically unlock encrypted files during installation
+
+2. **On new machines:**
+   - Clone the repository
+   - Copy your git-crypt key file to `~/.config/git-crypt/key`
+   - Run the install script - it will automatically unlock encrypted files
+
+3. **Key file backup:**
+   - **IMPORTANT:** Backup your git-crypt key file (`~/.config/git-crypt/key`) to a password manager
+   - This key file is required to decrypt the encrypted files
+   - Store it securely - if lost, you cannot decrypt the files
+
+### Automatic Unlock
+
+Git hooks automatically unlock encrypted files on `git checkout` and `git pull` operations, making encryption/decryption transparent during normal git operations.
+
+**Note:** The git-crypt key file should be stored securely (password manager recommended) and backed up. Never commit the key file to the repository.
 
 ## Cross-Platform Compatibility
 
