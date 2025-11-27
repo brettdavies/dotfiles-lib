@@ -121,6 +121,7 @@ stow/
 - Git
 - GNU Stow (will be installed automatically if missing)
 - Homebrew (macOS only - for package installation)
+- yq 4.0+ (will be installed/upgraded automatically if needed - required for `generate-brewfile.sh`)
 - `diff3` (part of `diffutils` package) - Required only if using `--sync-local --merge` mode. Will be prompted to install automatically if missing.
 
 **Check prerequisites**:
@@ -155,7 +156,7 @@ stow/
 
 The script orchestrates several modular scripts in the `scripts/install/` directory:
 
-- **check-dependencies.sh**: Installs GNU Stow, shells (zsh/bash), and oh-my-zsh if missing
+- **check-dependencies.sh**: Installs GNU Stow, shells (zsh/bash), yq 4.0+, and oh-my-zsh if missing
 - **stow-packages.sh**: Creates symlinks for all configuration files using `stow --dotfiles`
 - **create-secrets.sh**: Creates an empty `.secrets` file with proper permissions (600)
 - **create-lmstudio-pointer.sh**: Creates `.lmstudio-home-pointer` if LM Studio is installed (optional)
@@ -621,6 +622,14 @@ The codebase is optimized for modern shells while maintaining backward compatibi
 - **Zsh 5.1+**: Parameter expansion flags (:u, :l)
 - **Zsh 5.0.8+**: HIST_FCNTL_LOCK for better history locking
 - **Zsh 5.0+**: All zsh modules and glob qualifiers
+
+#### Tool Version Requirements
+
+**yq:**
+
+- **yq 4.0+**: Required for `generate-brewfile.sh` script (uses yq v4 syntax)
+- The `check-dependencies.sh` script automatically checks and installs/upgrades yq if needed
+- yq v3 is not supported due to syntax differences (e.g., `-c` flag removed in v4)
 
 #### Advanced Features
 
