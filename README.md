@@ -98,7 +98,7 @@ The library system uses a modular, layered architecture with three loader option
 
 ```plaintext
 stow/
-├── shell/        # Shared shell configs (.profile)
+├── shell/        # Shared shell configs (.profile, .telemetry.sh, .models.sh, .caches.sh)
 ├── zsh/          # Zsh configs (.zshrc, .zprofile, .p10k.zsh)
 ├── bash/         # Bash configs (.bashrc, .bash_profile)
 ├── git/          # Git config (.gitconfig, .config/git/*)
@@ -111,7 +111,6 @@ stow/
 ├── claude/       # Claude IDE configs (.claude/settings.json, statusline.sh)
 ├── codex/        # Codex configs (.codex/config.toml)
 ├── opencode/     # OpenCode configs (.config/opencode/config.json)
-├── telemetry/    # Telemetry settings (.telemetry.sh)
 └── brew/         # Brewfile for Homebrew packages
 ```
 
@@ -355,11 +354,15 @@ The install script automatically creates symlinks from brew packages to `~/.oh-m
 
 - `.config/opencode/config.json` - OpenCode configuration
 
-### Telemetry
+### Shell Configuration
 
+- `.profile` - Shared shell profile (sourced by both bash and zsh)
 - `.telemetry.sh` - Telemetry and analytics disable settings (sourced by `.profile`)
+- `.models.sh` - AI/ML model directory configurations (sourced by `.profile`)
+- `.caches.sh` - Package manager and tool cache directory configurations (sourced by `.profile`)
+- `.shell-functions` - Shell utility functions
 
-This file contains environment variables to disable telemetry for various tools (Gatsby, Homebrew, Steam, etc.). It's automatically sourced by `.profile` for both bash and zsh.
+The telemetry file contains environment variables to disable telemetry for various tools (Gatsby, Homebrew, Steam, etc.). All shell configuration files are automatically sourced by `.profile` for both bash and zsh.
 
 ### Homebrew
 

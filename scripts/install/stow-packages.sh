@@ -861,14 +861,14 @@ else
     fi
 fi
 
-# Telemetry settings
+# Python package manager configs
 if [ "$DRY_RUN" = true ]; then
-    stow_package telemetry "Telemetry settings"
+    stow_package pip "Python package manager configs (pip)"
 else
-    output=$(stow_package telemetry 2>&1)
+    output=$(stow_package pip 2>&1)
     if [ -n "${output// }" ]; then
-        echo "  - Telemetry settings"
-        log_info "Telemetry settings"
+        echo "  - Python package manager configs (pip)"
+        log_info "Python package manager configs (pip)"
         echo "$output"
         log_info "$output"
     fi

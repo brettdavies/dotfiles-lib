@@ -49,3 +49,5 @@
 
 # Log files
 scripts/sync/logs/*.log
+/stow/claude/dot-claude/**/*
+
