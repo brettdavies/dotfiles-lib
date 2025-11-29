@@ -1,12 +1,13 @@
 # Central package and tool cache directory
 # This file configures environment variables for package manager and tool cache locations
-# All caches are stored under a central CACHE_HOME directory for easy management and cleanup
+# All caches are stored under XDG_CACHE_HOME (XDG Base Directory Specification) for easy management and cleanup
 
-# Central package and tool cache directory
-export CACHE_HOME="$HOME/cache"
+# Set XDG_CACHE_HOME according to XDG Base Directory Specification
+# Defaults to ~/.cache if not already set, allowing users to override if needed
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 
 # Create the cache directory if it doesn't exist
-[ ! -d "$CACHE_HOME" ] && mkdir -p "$CACHE_HOME"
+[ ! -d "$XDG_CACHE_HOME" ] && mkdir -p "$XDG_CACHE_HOME"
 
 # ============================================================================
 # System/OS Package Managers
@@ -14,7 +15,7 @@ export CACHE_HOME="$HOME/cache"
 
 # Homebrew cache (macOS only)
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    export HOMEBREW_CACHE="$CACHE_HOME/homebrew"
+    export HOMEBREW_CACHE="$XDG_CACHE_HOME/homebrew"
 fi
 
 # ============================================================================
@@ -22,45 +23,45 @@ fi
 # ============================================================================
 
 # Python package managers and tools
-export POETRY_CACHE_DIR="$CACHE_HOME/pypoetry"
-export PIP_CACHE_DIR="$CACHE_HOME/pip"
-export PIPX_HOME="$CACHE_HOME/pipx"
-export UV_CACHE_DIR="$CACHE_HOME/uv"
+export POETRY_CACHE_DIR="$XDG_CACHE_HOME/pypoetry"
+export PIP_CACHE_DIR="$XDG_CACHE_HOME/pip"
+export PIPX_HOME="$XDG_CACHE_HOME/pipx"
+export UV_CACHE_DIR="$XDG_CACHE_HOME/uv"
 # Note: uvx (uv's tool runner) uses the same UV_CACHE_DIR
 
 # Node.js package managers
 # Note: npm cache is configured via npm config, not environment variable
 # The cache directory will be set if npm is available
-# npx uses the same cache location as npm, so it will use $CACHE_HOME/npm/_npx
+# npx uses the same cache location as npm, so it will use $XDG_CACHE_HOME/npm/_npx
 if command -v npm &> /dev/null; then
-    npm config set cache "$CACHE_HOME/npm" 2>/dev/null || true
+    npm config set cache "$XDG_CACHE_HOME/npm" 2>/dev/null || true
 fi
-export YARN_CACHE_FOLDER="$CACHE_HOME/yarn"
-export PNPM_HOME="$CACHE_HOME/pnpm"
-export BUN_INSTALL="$CACHE_HOME/bun"
+export YARN_CACHE_FOLDER="$XDG_CACHE_HOME/yarn"
+export PNPM_HOME="$XDG_CACHE_HOME/pnpm"
+export BUN_INSTALL="$XDG_CACHE_HOME/bun"
 
 # Rust package managers
-export CARGO_HOME="$CACHE_HOME/cargo"
-export RUSTUP_HOME="$CACHE_HOME/rustup"
+export CARGO_HOME="$XDG_CACHE_HOME/cargo"
+export RUSTUP_HOME="$XDG_CACHE_HOME/rustup"
 
 # Go cache
-export GOCACHE="$CACHE_HOME/go-build"
-export GOPATH="$CACHE_HOME/go"
+export GOCACHE="$XDG_CACHE_HOME/go-build"
+export GOPATH="$XDG_CACHE_HOME/go"
 
 # ============================================================================
 # Testing and Browser Automation Tools
 # ============================================================================
 
-export CYPRESS_CACHE_FOLDER="$CACHE_HOME/cypress"
-export PLAYWRIGHT_BROWSERS_PATH="$CACHE_HOME/playwright"
-export PUPPETEER_CACHE_DIR="$CACHE_HOME/puppeteer"
+export CYPRESS_CACHE_FOLDER="$XDG_CACHE_HOME/cypress"
+export PLAYWRIGHT_BROWSERS_PATH="$XDG_CACHE_HOME/playwright"
+export PUPPETEER_CACHE_DIR="$XDG_CACHE_HOME/puppeteer"
 
 # ============================================================================
 # Platform and Runtime Tools
 # ============================================================================
 
-export DENO_DIR="$CACHE_HOME/deno"
-export FIREBASE_CACHE_DIR="$CACHE_HOME/firebase"
+export DENO_DIR="$XDG_CACHE_HOME/deno"
+export FIREBASE_CACHE_DIR="$XDG_CACHE_HOME/firebase"
 
 # ============================================================================
 # Notes: Tools Configured Elsewhere or Not Configurable
@@ -92,7 +93,7 @@ fi
 [ ! -d "$UV_CACHE_DIR" ] && mkdir -p "$UV_CACHE_DIR"
 
 # Node.js caches
-[ ! -d "$CACHE_HOME/npm" ] && mkdir -p "$CACHE_HOME/npm"
+[ ! -d "$XDG_CACHE_HOME/npm" ] && mkdir -p "$XDG_CACHE_HOME/npm"
 [ ! -d "$YARN_CACHE_FOLDER" ] && mkdir -p "$YARN_CACHE_FOLDER"
 [ ! -d "$PNPM_HOME" ] && mkdir -p "$PNPM_HOME"
 [ ! -d "$BUN_INSTALL" ] && mkdir -p "$BUN_INSTALL"
