@@ -42,18 +42,19 @@ is cut from `main` and then takes `dev`'s tree, so anything `main` holds that `d
 release, and Dependabot raises the same fix again.
 
 ```bash
-scripts/release/drift.sh --since "$(git describe --tags --abbrev=0 origin/main)"
+scripts/release/drift.sh
 ```
 
-`--since` is required here: the script's default anchor looks for `v`-prefixed tags, and this repo's CalVer tags carry
-none. Without it the anchor lands on an old commit and every file later releases shipped is reported as drift.
+The anchor is the newest CalVer tag reachable from `origin/main`; `--since <ref>` overrides it.
 
+- [ ] Gate 0 passes: `dev` already carries the previous release's `CHANGELOG.md`. Gate 0 fails when the previous
+  release's bookkeeping never reached `dev`; run `scripts/sync-dev-after-release.sh <tag>`, merge its PR, and rerun.
 - [ ] Every commit on `main` since the last tag has its changes on `dev` (gate 1 lists the ones that do not, as
   `differs` or `missing`). Backport them by PR into `dev` first, merge, and rerun.
 - [ ] `.github/` is identical on both branches, or differs only by changes `dev` is about to ship (gate 2). Workflow and
   ruleset edits land through `dev` here, so a `dev`-ahead diff is the routine pre-release state; a `main`-ahead diff is
   a config change that reached only one branch and needs a decision.
-- [ ] Gate 3 (lockfile resolution) SKIPs: this repo carries no `package-lock.json` or `Cargo.lock`.
+- [ ] Gate 3 (lockfile resolution) SKIPs: this repo carries no `package-lock.json`, `bun.lock`, or `Cargo.lock`.
 
 ### Repo health (mirror CI locally)
 

@@ -100,9 +100,9 @@ built as a **clean descendant of `main`** with `dev`'s tree overlaid on top, ass
 
 ```bash
 # 0. Nothing on main that dev never received (security PRs, hotfixes, config). Exits 1
-#    while drift exists. The anchor is passed explicitly: the script's default anchor
-#    resolution looks for v-prefixed tags, and this repo's CalVer tags carry no prefix.
-scripts/release/drift.sh --since "$(git describe --tags --abbrev=0 origin/main)"
+#    while drift exists. The anchor is the newest CalVer tag on main; gate 0 fails when
+#    that release's CHANGELOG.md never reached dev, so run the backport step first.
+scripts/release/drift.sh
 
 # 1. Branch from main, NOT dev.
 git fetch origin
@@ -147,7 +147,7 @@ git diff --cached --diff-filter=A --name-only origin/main | grep -E '(^docs/|\.m
 #    (subject "release: YYYY.MM.DD"; author the message in /tmp/ and pass --file). Re-run
 #    the drift gate last, in case main moved while the branch was being built.
 git commit --file /tmp/commit-msg.md
-scripts/release/drift.sh --since "$(git describe --tags --abbrev=0 origin/main)"
+scripts/release/drift.sh
 
 # 7. Push and open the PR (scrub the body in /tmp/ first).
 git push -u origin "release/$(date +%Y.%m.%d)"
@@ -316,9 +316,8 @@ never hand-edit `CHANGELOG.md`.
 Two rulesets are committed under `.github/rulesets/` and applied to the repo via the GitHub API:
 
 - `protect-main.json`: required signatures, linear history, squash-only merges via PR, creation/deletion blocked,
-  non-fast-forward blocked, `shellcheck` and `bats` required. The three guard callers (`guard-docs /
-  check-forbidden-docs`, `guard-provenance / check-provenance`, `guard-release / check-release-branch-name`) run on
-  every PR to `main` and are advisory until registered as required checks in that file.
+  non-fast-forward blocked, and five required checks: `shellcheck`, `bats`, and the three guard callers (`guard-docs /
+  check-forbidden-docs`, `guard-provenance / check-provenance`, `guard-release / check-release-branch-name`).
 - `protect-dev.json`: required signatures, deletion blocked, non-fast-forward blocked. `shellcheck` and `bats` are
   required status checks; the PR-only norm is convention, not ruleset-enforced.
 
@@ -342,8 +341,10 @@ gh api -X PUT repos/brettdavies/dotfiles/rulesets/<id> --input .github/rulesets/
 - **`scripts/sync-dev-after-release.sh`** is this repo's CalVer, CHANGELOG-only variant of the fleet template. The
   template writes the released version into `Cargo.toml`, `package.json`, `pyproject.toml`, or `VERSION` and creates
   `VERSION` when none exist; this repo has no carrier and must not grow one, so the script stays a repo-owned fork.
-- **`scripts/release/drift.sh` needs `--since`.** Its default anchor resolution matches `v`-prefixed tags and `release
-  vX.Y.Z` subjects, neither of which exists here. Pass the newest tag on `main` explicitly, as the recipe above does.
+- **`scripts/release/drift.sh` anchors on the newest CalVer tag reachable from `main`.** Gate 0 then checks that `dev`
+  already carries that release's `CHANGELOG.md`; a failure there means the backport PR never merged, so run
+  `scripts/sync-dev-after-release.sh <tag>` and merge it before cutting the release. `--since <ref>` overrides the
+  anchor.
 - **Stray or same-day tags.** `release.yml` derives `.N` from the tags already present for today, so a test tag created
   out of band shifts the next same-day suffix. Delete such tags and their GitHub Releases rather than working around
   them.
@@ -369,8 +370,13 @@ fix the previous section on `main` (via a backport) if it is what is stale.
 **Empty changelog sections:** Ensure `cliff.toml` has `[remote.github]` with `owner` and `repo` for PR-body expansion,
 and that `gh auth status` succeeds (the script reads `GITHUB_TOKEN` when set and falls back to `gh auth token`).
 
-**`drift.sh` reports dozens of files after a release that clearly shipped:** The anchor resolved to the wrong commit.
-Pass `--since "$(git describe --tags --abbrev=0 origin/main)"`; see [§ Project specifics](#project-specifics).
+**`drift.sh` reports dozens of files after a release that clearly shipped:** The anchor resolved to the wrong commit,
+usually because the release tag is not present locally. Run `git fetch --tags` and rerun, or pass `--since <tag>`
+explicitly; see [§ Project specifics](#project-specifics).
+
+**`drift.sh` fails gate 0 (`origin/dev lacks the tag <tag> bookkeeping`):** The previous release's `CHANGELOG.md`
+backport never merged into `dev`. Run `scripts/sync-dev-after-release.sh <tag>` (see § Backport to dev after release),
+merge its PR, and rerun.
 
 **Push to `release/*` rejected for unsigned commits:** Release branches aren't in `protect-dev.json`'s ref pattern, but
 `gitconfig` sets `commit.gpgsign = true` globally and `.githooks/pre-commit` enforces it. Ensure your SSH signing key is
