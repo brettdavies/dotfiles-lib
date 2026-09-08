@@ -48,7 +48,7 @@
 #   1 = drift found (see the failed gates)
 #   2 = setup error (missing dependency, unknown ref)
 #
-# Dependencies: git, diff, jq or jaq (for package-lock.json and bun.lock), sort -V, join.
+# Dependencies: git, diff, perl, jq or jaq (for package-lock.json and bun.lock), sort -V, join.
 set -euo pipefail
 
 # shellcheck disable=SC1091  # sibling _lib.sh, always vendored alongside
@@ -143,8 +143,10 @@ resolve_anchor() {
     ANCHOR_HOW="tag $tag"
     return
   fi
-  subject_commit=$(git log -1 --format=%H --extended-regexp \
-    --grep='^release(: | v?[0-9])' "$HEAD_REF" 2>/dev/null || true)
+  # `git log --grep` searches the whole message, so a body that quotes a
+  # release line would match; filter on the subject line itself.
+  subject_commit=$(git log --format='%H %s' "$HEAD_REF" 2>/dev/null \
+    | grep -E -m1 '^[0-9a-f]+ release(: | v?[0-9])' | cut -d' ' -f1 || true)
   if [[ -n "$subject_commit" ]]; then
     ANCHOR="$subject_commit"
     ANCHOR_HOW="release commit $(git log -1 --format='%h %s' "$subject_commit")"
@@ -175,6 +177,13 @@ gate_anchor_backported() {
     head_blob=$(blob_at "$ANCHOR" "$path")
     [[ -n "$head_blob" ]] || continue
     [[ -n "$prev" && "$(blob_at "$prev" "$path")" == "$head_blob" ]] && continue
+    if [[ -z "$prev" || -z "$(blob_at "$prev" "$path")" ]]; then
+      # The anchor release created this file, so there is no change to
+      # contain; base only has to carry the file. Base may since have moved
+      # it on (a routine bump), which is not drift.
+      [[ -n "$(blob_at "$BASE_REF" "$path")" ]] || flagged+=("missing $path")
+      continue
+    fi
     verdict=$(classify_file_at "$ANCHOR" "$prev" "$path")
     [[ "$verdict" == contained ]] || flagged+=("$verdict $path")
   done
@@ -320,8 +329,10 @@ lockfile_versions() {
       # Each entry is `name: ["name@version", ...]`; the first element carries
       # the resolved version. Everything is "dev" or "runtime" by workspace
       # section, which the entry does not record, so scope is unknown.
+      # Bun writes trailing commas, which jq and jaq reject; strip them
+      # before parsing.
       # shellcheck disable=SC2016
-      git show "$ref:$path" | "$JQ_BIN" -r '.packages | to_entries[]
+      git show "$ref:$path" | perl -0pe 's/,(\s*[}\]])/$1/g' | "$JQ_BIN" -r '.packages | to_entries[]
         | select(.value[0] | type == "string")
         | (.value[0] | capture("^(?<name>@?[^@]+)@(?<ver>[^@]+)$")) as $m
         | "\($m.name) \($m.ver) pkg"'
@@ -357,6 +368,11 @@ compare_lockfile() {
       base_newer=$((base_newer + 1))
     fi
   done < <(join <(lockfile_versions "$BASE_REF" "$path") <(lockfile_versions "$HEAD_REF" "$path"))
+  if [[ $head_newer -eq 0 && $base_newer -eq 0 ]] \
+    && [[ -z "$(lockfile_versions "$HEAD_REF" "$path" 2>/dev/null | head -1)" ]]; then
+    gate_fail "$path" "parsed zero packages on $HEAD_REF; the lockfile format is not understood"
+    return
+  fi
   if [[ $head_newer -eq 0 ]]; then
     gate_pass "$path: nothing newer on $HEAD_REF ($base_newer packages newer on $BASE_REF, awaiting release)"
     return
@@ -370,7 +386,7 @@ gate_lockfiles() {
   local paths path
   paths=$(git ls-tree -r --name-only "$HEAD_REF" | grep -E "$LOCKFILE_PATTERN" || true)
   if [[ -z "$paths" ]]; then
-    gate_skip "lockfiles" "no package-lock.json or Cargo.lock on $HEAD_REF"
+    gate_skip "lockfiles" "no package-lock.json, bun.lock, or Cargo.lock on $HEAD_REF"
     return
   fi
   while IFS= read -r path; do
