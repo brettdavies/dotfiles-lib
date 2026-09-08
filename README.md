@@ -294,7 +294,7 @@ See `docs/solutions/performance-issues/` for optimization details.
 
 Every squash merge to `main` triggers a GitHub Action that computes a CalVer version (`YYYY.MM.DD`), tags the commit,
 and creates a GitHub Release. Release notes are extracted from the topmost section of the committed `CHANGELOG.md`. See
-[RELEASES.md](RELEASES.md) for the end-to-end flow (feature branch → dev → `release/*` cherry-pick branch → main).
+[RELEASES.md](RELEASES.md) for the end-to-end flow (feature branch → dev → `release/*` overlay branch → main).
 
 ### CI_RELEASE_TOKEN Secret
 
