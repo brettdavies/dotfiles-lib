@@ -6,7 +6,7 @@
 #   . "$(dirname "$0")/_lib.sh"
 #
 # Provides:
-#   - Color helpers (C_RED, C_GRN, C_YLW, C_RST, C_BLD) — empty when stdout is
+#   - Color helpers (C_RED, C_GRN, C_YLW, C_RST, C_BLD), empty when stdout is
 #     not a TTY, so output is clean in CI logs.
 #   - Gate counters (PASS_COUNT, FAIL_COUNT, SKIP_COUNT) and emitters
 #     (gate_pass, gate_fail, gate_skip).
@@ -30,6 +30,7 @@ _RELEASE_LIB_SOURCED=1
 if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4))); then
   printf 'error: bash >= 4.4 required, but this is bash %s.\n' "${BASH_VERSION:-unknown}" >&2
   printf 'Install a newer bash: brew install bash\n' >&2
+  # shellcheck disable=SC2317  # `exit` runs only when executed rather than sourced
   return 1 2>/dev/null || exit 1
 fi
 
@@ -61,7 +62,7 @@ gate_fail() {
   FAIL_COUNT=$((FAIL_COUNT + 1))
 }
 gate_skip() {
-  printf "  %s⊝%s %s — %s\n" "$C_YLW" "$C_RST" "$1" "${2:-not yet ready}"
+  printf "  %s⊝%s %s: %s\n" "$C_YLW" "$C_RST" "$1" "${2:-not yet ready}"
   SKIP_COUNT=$((SKIP_COUNT + 1))
 }
 header() { printf "\n%s== %s ==%s\n" "$C_BLD" "$1" "$C_RST"; }
