@@ -9,6 +9,8 @@ set -euo pipefail
 # of headless servers. See docs/solutions/.../stow-conflict-resolution-wrapper.md
 #
 # Usage: scripts/stow-deploy [--headless] [--all] [package ...]
+# Env:   STOW_DEPLOY_TARGET  deploy target directory (default: $HOME). The bats
+#        suite points it at a sandbox so no checkout can re-point live symlinks.
 
 # Exit codes — distinct values for automation/CI (all non-zero still indicate failure)
 EXIT_USAGE=2        # Bad arguments or flags
@@ -24,7 +26,7 @@ DESKTOP_PACKAGES=(ghostty cursor launchagent)
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STOW_DIR="$REPO_ROOT/stow"
-TARGET="$HOME"
+TARGET="${STOW_DEPLOY_TARGET:-$HOME}"
 HEADLESS=false
 ALL=false
 
@@ -142,10 +144,10 @@ fi
 # Only the 4 packages that were tree-folded before --no-folding are listed.
 get_fold_target() {
   case "$1" in
-    claude) echo "$HOME/.claude" ;;
-    codex) echo "$HOME/.codex" ;;
-    git) echo "$HOME/.config/git" ;;
-    opencode) echo "$HOME/.config/opencode" ;;
+    claude) echo "$TARGET/.claude" ;;
+    codex) echo "$TARGET/.codex" ;;
+    git) echo "$TARGET/.config/git" ;;
+    opencode) echo "$TARGET/.config/opencode" ;;
     *) return 1 ;;
   esac
 }
@@ -514,7 +516,10 @@ fi
 # machine that installs rustup later wants `rustup-init --profile minimal`.
 # Repos can close the gap independently with `profile = "minimal"` in their
 # rust-toolchain.toml, which rustup honors when it auto-installs the pin.
-if grep -qx "cargo" "$deployed_file" 2>/dev/null; then
+#
+# ~/.rustup lives outside the stow target, so like the timer recovery this is
+# scoped to a real $HOME deploy and a sandboxed target never rewrites it.
+if [ "$TARGET" = "$HOME" ] && grep -qx "cargo" "$deployed_file" 2>/dev/null; then
   echo ""
   echo "==> Checking rustup install profile"
   if command -v rustup >/dev/null 2>&1; then

@@ -6,6 +6,22 @@
 SCRIPT="$BATS_TEST_DIRNAME/../scripts/stow-deploy"
 STOW_DIR="$BATS_TEST_DIRNAME/../stow"
 
+# Every case that runs the script gets a per-test sandbox target. The isolation
+# lives here, not in the skips below: a worktree or second clone must never
+# re-point the live $HOME symlinks at itself.
+setup() {
+  export STOW_DEPLOY_TARGET="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$STOW_DEPLOY_TARGET"
+}
+
+# stow-deploy exits before naming any package when this checkout's git-crypt
+# files are still ciphertext (fresh clone, CI), so only an unlocked checkout can
+# exercise the deploy loop.
+_require_unlocked_checkout() {
+  grep -qI '' "$STOW_DIR/secrets/dot-secrets" 2>/dev/null \
+    || skip "git-crypt locked in this checkout — stow-deploy bails before printing pkg names"
+}
+
 # ---------------------------------------------------------------------------
 # Package set contents
 # ---------------------------------------------------------------------------
@@ -99,7 +115,7 @@ STOW_DIR="$BATS_TEST_DIRNAME/../stow"
 # ---------------------------------------------------------------------------
 
 @test "no args deploys SHARED_PACKAGES" {
-  [ -L "$HOME/.profile" ] || skip "dotfiles not deployed — stow-deploy bails before printing pkg names"
+  _require_unlocked_checkout
   run "$SCRIPT"
   [[ "$output" == *"==> Stowing secrets"* ]]
   [[ "$output" == *"==> Stowing shell"* ]]
@@ -108,7 +124,7 @@ STOW_DIR="$BATS_TEST_DIRNAME/../stow"
 }
 
 @test "explicit args extend SHARED_PACKAGES" {
-  [ -L "$HOME/.profile" ] || skip "dotfiles not deployed — stow-deploy bails before printing pkg names"
+  _require_unlocked_checkout
   run "$SCRIPT" ghostty
   [[ "$output" == *"==> Stowing secrets"* ]]
   # ghostty is in DESKTOP_PACKAGES (macOS-only). On Darwin it stows;
@@ -119,7 +135,7 @@ STOW_DIR="$BATS_TEST_DIRNAME/../stow"
 }
 
 @test "local package is not rejected" {
-  [ -L "$HOME/.profile" ] || skip "dotfiles not deployed — stow-deploy bails before printing pkg names"
+  _require_unlocked_checkout
   run "$SCRIPT" local
   [[ "$output" != *"rejected"* ]]
   [[ "$output" == *"==> Stowing local"* ]]
@@ -130,7 +146,7 @@ STOW_DIR="$BATS_TEST_DIRNAME/../stow"
 # ---------------------------------------------------------------------------
 
 @test "duplicate packages are deduplicated" {
-  [ -L "$HOME/.profile" ] || skip "dotfiles not deployed — stow-deploy bails before printing pkg names"
+  _require_unlocked_checkout
   run "$SCRIPT" git ssh git ssh
   git_count=$(echo "$output" | grep -c "^==> Stowing git$" || true)
   ssh_count=$(echo "$output" | grep -c "^==> Stowing ssh$" || true)
@@ -143,10 +159,10 @@ STOW_DIR="$BATS_TEST_DIRNAME/../stow"
 # ---------------------------------------------------------------------------
 
 @test "get_fold_target maps known packages" {
-  grep -q 'claude).*\$HOME/.claude' "$SCRIPT"
-  grep -q 'codex).*\$HOME/.codex' "$SCRIPT"
-  grep -q 'git).*\$HOME/.config/git' "$SCRIPT"
-  grep -q 'opencode).*\$HOME/.config/opencode' "$SCRIPT"
+  grep -q 'claude).*\$TARGET/.claude' "$SCRIPT"
+  grep -q 'codex).*\$TARGET/.codex' "$SCRIPT"
+  grep -q 'git).*\$TARGET/.config/git' "$SCRIPT"
+  grep -q 'opencode).*\$TARGET/.config/opencode' "$SCRIPT"
 }
 
 # ---------------------------------------------------------------------------
@@ -167,4 +183,33 @@ STOW_DIR="$BATS_TEST_DIRNAME/../stow"
   # Must not touch the live user manager from a sandboxed test target or on
   # macOS (launchd); guard requires Linux AND TARGET == HOME.
   grep -qF '[ "$(uname -s)" = "Linux" ] && [ "$TARGET" = "$HOME" ]' "$SCRIPT"
+}
+
+# ---------------------------------------------------------------------------
+# Target isolation
+# ---------------------------------------------------------------------------
+
+@test "deploy target defaults to \$HOME when STOW_DEPLOY_TARGET is unset" {
+  grep -qF 'TARGET="${STOW_DEPLOY_TARGET:-$HOME}"' "$SCRIPT"
+}
+
+@test "sandboxed deploy writes only under STOW_DEPLOY_TARGET" {
+  command -v stow >/dev/null 2>&1 || skip "stow not installed"
+  # A copy of the script inside a fixture tree: one marker file per shared
+  # package and no git-crypt gated file, so the deploy loop runs on any host.
+  fixture="$BATS_TEST_TMPDIR/fixture"
+  mkdir -p "$fixture/scripts"
+  cp "$SCRIPT" "$fixture/scripts/stow-deploy"
+  shared=$(grep '^SHARED_PACKAGES=' "$SCRIPT" | sed 's/.*(\(.*\))/\1/')
+  for pkg in $shared; do
+    mkdir -p "$fixture/stow/$pkg"
+    echo "$pkg" >"$fixture/stow/$pkg/dot-stow-sandbox-$pkg"
+  done
+
+  run "$fixture/scripts/stow-deploy"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"==> Stowing shell"* ]]
+  [ -L "$STOW_DEPLOY_TARGET/.stow-sandbox-shell" ]
+  [ "$(cat "$STOW_DEPLOY_TARGET/.stow-sandbox-shell")" = "shell" ]
+  [ -z "$(compgen -G "$HOME/.stow-sandbox-*")" ]
 }
