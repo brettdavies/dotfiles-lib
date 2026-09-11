@@ -159,7 +159,4 @@ if [ -n "${EDITOR:-}" ]; then
     export VISUAL=$EDITOR
 fi
 
-# Ollama updater (requires sudo — replaces root-owned binary and restarts systemd service)
-alias ollama-update='curl -fsSL https://ollama.com/install.sh | sudo sh'
-
 export GPG_TTY

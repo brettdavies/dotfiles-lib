@@ -34,3 +34,9 @@ _osc7_report_directory() {
     printf '\033]7;file://%s%s\033\\' "$hostname" "$PWD"
 }
 
+# ollama-update: replace the Ollama binary and restart its systemd service.
+# Lives here rather than in .profile because the name carries a hyphen, which
+# POSIX does not allow in a function name — dash rejects the definition
+# outright and abandons the rest of the file it appears in. This file is read
+# only by interactive bash and zsh, both of which accept the name.
+ollama-update() { curl -fsSL https://ollama.com/install.sh | sudo sh; }

@@ -271,3 +271,34 @@ CONFIG_DIR="$BATS_TEST_DIRNAME/../config/shell"
   [ "$status" -eq 0 ]
   [ "$output" = "found" ]
 }
+
+# Whether an alias defined in the `.profile` chain resolves depends on the
+# invocation, not the shell: bash leaves `expand_aliases` off so a `bash -lc`
+# caller never sees one, while POSIX mode turns it on so a `sh -lc` caller on
+# macOS does. A function behaves identically in every shape. AGENTS.md states
+# the rule; these pin it, because the failure is a command that silently does
+# not exist for exactly the scripted callers these files configure.
+@test "dot-profile defines no aliases" {
+  run ! grep -qE '^[[:space:]]*alias[[:space:]]' "$STOW_DIR/shell/dot-profile"
+}
+
+@test "no config/shell fragment defines an alias" {
+  # The fragments are sourced by the same loop, so the rule is the file set's,
+  # not any one file's. shell-functions is excluded: the rc files source it
+  # behind their interactive guards, where aliases are supported.
+  run ! grep -rqE '^[[:space:]]*alias[[:space:]]' --include='*.sh' "$CONFIG_DIR"
+}
+
+@test "a fragment-defined function resolves under bash -lc, where an alias would not" {
+  [ -L "$HOME/.profile" ] || skip "dotfiles not deployed (~/.profile not a symlink)"
+  command -v xr >/dev/null 2>&1 || skip "xurl-rs (xr) not installed"
+  # The property the two assertions above exist to protect, checked in the shape
+  # that discriminates: bash leaves `expand_aliases` off, so the same name
+  # defined as an alias reports "command not found" here. Scoped to `bash -lc`
+  # rather than every shape because the sourcing loop is gated on
+  # BASH_VERSION/ZSH_VERSION, so a dash `sh -lc` caller never reads the
+  # fragments at all and defines neither form.
+  run bash -lc 'typeset -f xurl >/dev/null && echo DEFINED'
+  [ "$status" -eq 0 ]
+  [ "$output" = "DEFINED" ]
+}
