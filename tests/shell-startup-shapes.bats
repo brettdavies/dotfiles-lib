@@ -130,12 +130,15 @@ _skip_unless_deployed() {
   }
 }
 
-@test "GUI-launched interactive zsh aliases xurl to xr" {
+@test "GUI-launched interactive zsh defines the xurl wrapper" {
   _skip_unless_deployed
   command -v xr >/dev/null 2>&1 || skip "xurl-rs (xr) not installed"
-  run _gui_shell zsh -ic 'alias xurl'
+  # A function, not an alias: the fragment defining it is sourced by `.profile`
+  # in non-interactive shells too, where alias resolution depends on the
+  # invocation rather than the shell.
+  run _gui_shell zsh -ic 'typeset -f xurl >/dev/null && echo DEFINED'
   [ "$status" -eq 0 ]
-  [[ "$output" == *"xr"* ]]
+  [[ "$output" == *"DEFINED"* ]]
 }
 
 @test "GUI-launched login zsh defines the gog wrapper" {
