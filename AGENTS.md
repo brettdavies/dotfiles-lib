@@ -149,8 +149,9 @@ reference.
 
 ### Supported invocation shapes
 
-The supported set is `{zsh, bash}` x `{login, non-login}` x `{interactive, non-interactive}`. Seven of the eight read at
-least one startup file and must end with a fully assembled `PATH`; the eighth reads nothing by design.
+The supported set is `{zsh, bash}` x `{login, non-login}` x `{interactive, non-interactive}`, plus the `dash` login
+shape that remote tooling reaches. All but one read at least one startup file and must end with a fully assembled
+`PATH`; the exception reads nothing by design.
 
 | Shell  | Login | Interactive | Reads                                    | Reached by                                           |
 | ------ | ----- | ----------- | ---------------------------------------- | ---------------------------------------------------- |
@@ -162,11 +163,19 @@ least one startup file and must end with a fully assembled `PATH`; the eighth re
 | `bash` | yes   | no          | `.bash_profile` → `.profile`             | `bash -lc`                                           |
 | `bash` | no    | yes         | `.bashrc` → `.profile`                   | `bash -i`                                            |
 | `bash` | no    | no          | nothing, or `$BASH_ENV`                  | `bash script.sh`, git hooks, CI, the agent Bash tool |
+| `dash` | yes   | no          | `.profile`                               | `sh -lc` from remote tooling                         |
 
-The last row is the *bare launcher* case (see [CONCEPTS.md](CONCEPTS.md)): bash has no all-invocations file, so the
-shape inherits whatever its launcher handed it. Scripts in that position source the helper they need explicitly, per the
-section below. Claude Code's Bash tool is wired through `CLAUDE_ENV_FILE` by `stow/claude/dot-claude/bash-env-path.sh`,
-which repairs keg-only Ruby ordering only; it assumes an inherited `PATH` rather than assembling one.
+The `bash` non-login non-interactive row is the *bare launcher* case (see [CONCEPTS.md](CONCEPTS.md)): bash has no
+all-invocations file, so the shape inherits whatever its launcher handed it. Scripts in that position source the helper
+they need explicitly, per the section below. Claude Code's Bash tool is wired through `CLAUDE_ENV_FILE` by
+`stow/claude/dot-claude/bash-env-path.sh`, which repairs keg-only Ruby ordering only; it assumes an inherited `PATH`
+rather than assembling one.
+
+The `dash` row is its opposite and the one easiest to forget. `/bin/sh` is dash on Debian and Ubuntu, and `-l` makes it
+a login shell, so a tool that reaches a host with `sh -lc '<cmd>'` reads `.profile` regardless of the account's default
+shell. That shape constrains the entry file's syntax, not just its ordering: everything outside a region guarded on
+`BASH_VERSION` has to stay POSIX, because a construct dash rejects ends the file where it stands and costs every export
+below it.
 
 `tests/shell-path-matrix.bats` exercises every row from an `env -i` launchd-style environment, so a pass means the shape
 assembles `PATH` itself rather than inheriting it from a working parent shell.
@@ -175,8 +184,10 @@ assembles `PATH` itself rather than inheriting it from a working parent shell.
 `.profile` or `config/shell/*.sh` — never in `.zshrc`/`.bashrc`. Consult the startup file matrix in
 `docs/solutions/deployment-issues/post-deployment-shell-config-fixes.md` before choosing a location.
 
-**`config/shell/*.sh` must use functions, not aliases.** These files are sourced by `.profile` under POSIX `sh` where
-aliases don't exist. Aliases belong in `.zshrc`/`.bashrc` (after the interactive guard) only.
+**`config/shell/*.sh` must use functions, not aliases.** `.profile` sources these files in non-interactive shells, and
+bash does not expand aliases there unless `expand_aliases` is set, so an alias defined here is invisible to exactly the
+scripted and automated callers the fragments exist to configure. A function works in every shape that sources them.
+Aliases belong in `.zshrc`/`.bashrc` (after the interactive guard) only.
 
 **External scripts that need a helper must source it explicitly.** `.profile`'s auto-source loop in
 `stow/shell/dot-profile` runs only for shells that read `.profile` (interactive zsh/bash; non-interactive zsh via the
