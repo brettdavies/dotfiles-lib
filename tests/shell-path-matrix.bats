@@ -16,6 +16,14 @@
 #   bash  login     non-interactive  .bash_profile .profile             `bash -lc`
 #   bash  non-login interactive      .bashrc .profile                   `bash -i`
 #   bash  non-login non-interactive  nothing (or $BASH_ENV)             `bash script.sh`, git hooks, CI, agent Bash tool
+#   dash  login     non-interactive  .profile                           `sh -lc` from a remote tool
+#
+# The dash row is the one that is easy to forget: /bin/sh is dash on Debian and
+# Ubuntu, so any tool that reaches a machine with `sh -lc '<cmd>'` reads
+# dot-profile under a shell with no arrays and no `[[`. A bash-only construct
+# there is not a cosmetic warning — dash aborts the file, every PATH export
+# below the fault never runs, and the caller cannot find the command it came
+# for.
 #
 # Every shape is started from an `env -i` launchd-style environment, so a pass
 # means the shape assembles PATH itself rather than inheriting it from a parent.
@@ -160,6 +168,40 @@ _assert_assembled_path() {
     echo "got: $output"
     false
   }
+}
+
+# ---------------------------------------------------------------------------
+# dash — /bin/sh on Debian and Ubuntu, and the shell remote tooling lands in
+# ---------------------------------------------------------------------------
+
+_skip_unless_dash() {
+  command -v dash >/dev/null 2>&1 || skip "dash not installed"
+}
+
+@test "dash login non-interactive sources dot-profile without error" {
+  _skip_unless_deployed
+  _skip_unless_dash
+  # Asserts on stderr rather than exit status: a shell reports the fault and
+  # keeps going, so the status stays 0 while the rest of the file is skipped.
+  # `${BASH_SOURCE[0]}` outside a BASH_VERSION guard fails exactly this way.
+  run env -i HOME="$HOME" USER="${USER:-$(id -un)}" LOGNAME="${LOGNAME:-$(id -un)}" \
+    TERM=xterm-256color PATH="$BARE_PATH" \
+    dash -lc 'true' 2>&1
+  [ -z "$output" ] || {
+    echo "dash -lc reported startup errors; dot-profile is not POSIX-clean:"
+    echo "$output"
+    false
+  }
+}
+
+@test "dash login non-interactive assembles PATH" {
+  _skip_unless_deployed
+  _skip_unless_dash
+  # The non-fatal half of the same problem: dash treats `[[` as a command it
+  # cannot find and takes the false branch, so a bash-only test silently
+  # inverts and the block it guards never runs. Checking the assembled PATH
+  # catches that, where checking stderr alone would not.
+  _assert_assembled_path "dash -lc" "$(_path_in dash -lc)"
 }
 
 # ---------------------------------------------------------------------------
