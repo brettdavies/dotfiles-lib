@@ -8,3 +8,4 @@ stow/caam/dot-local/share/caam/vault/** filter=git-crypt diff=git-crypt
 stow/codex/dot-codex/config.toml filter=git-crypt diff=git-crypt
 
 snapshots/tailscale/** filter=git-crypt diff=git-crypt
+snapshots/codexbar/** filter=git-crypt diff=git-crypt

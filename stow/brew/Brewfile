@@ -3,6 +3,7 @@
 # Required taps
 tap "gromgit/brewtils"
 tap "oven-sh/bun"
+tap "steipete/tap"
 
 # oh-my-zsh theme
 brew "powerlevel10k"
@@ -98,6 +99,14 @@ brew "trash-cli" if OS.linux?
 brew "terminal-notifier" if OS.mac?
 brew "gromgit/brewtils/taproom" if OS.mac?
 
+# CodexBar's agent-session menu reaches remote hosts over SSH and runs
+# `codexbar sessions --json-v2` there, falling back to a CodexBar.app inside
+# /Applications — a path that exists only on macOS. Without the standalone CLI
+# on PATH, a Linux host is discovered and then fails to report. The Mac gets the
+# same binary from the cask below, so the formula is Linux-only to avoid the two
+# colliding.
+brew "steipete/tap/codexbar" if OS.linux?
+
 # macOS-only casks (Homebrew Cask is macOS-only — `brew bundle` skips these on Linux)
 cask "1password-cli"
 cask "claude-code"
@@ -106,6 +115,7 @@ cask "font-meslo-lg-nerd-font"
 cask "appcleaner"
 cask "docker-desktop"
 cask "rectangle"
+cask "codexbar"
 
 # VS Code extensions (macOS — Cursor on Linux uses its own extension sync)
 vscode "anthropic.claude-code"
