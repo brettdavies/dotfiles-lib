@@ -184,10 +184,13 @@ assembles `PATH` itself rather than inheriting it from a working parent shell.
 `.profile` or `config/shell/*.sh` — never in `.zshrc`/`.bashrc`. Consult the startup file matrix in
 `docs/solutions/deployment-issues/post-deployment-shell-config-fixes.md` before choosing a location.
 
-**`config/shell/*.sh` must use functions, not aliases.** `.profile` sources these files in non-interactive shells, and
-bash does not expand aliases there unless `expand_aliases` is set, so an alias defined here is invisible to exactly the
-scripted and automated callers the fragments exist to configure. A function works in every shape that sources them.
-Aliases belong in `.zshrc`/`.bashrc` (after the interactive guard) only.
+**`config/shell/*.sh` must use functions, not aliases.** `.profile` sources these files in non-interactive shells, where
+whether an alias resolves depends on how the shell was invoked rather than on which shell it is. Bash leaves
+`expand_aliases` off, so a `bash -lc` caller never sees one; POSIX mode turns it on, so a `sh -lc` caller on macOS —
+where `/bin/sh` is bash — does see it; and on Linux `/bin/sh` is dash, which never reaches these files at all because
+the sourcing loop is gated on `BASH_VERSION`/`ZSH_VERSION`. One alias therefore resolves, errors, or is never defined
+depending on the host and the invocation. A function behaves the same in every shape that sources these files. Aliases
+belong in `.zshrc`/`.bashrc` (after the interactive guard) only.
 
 **External scripts that need a helper must source it explicitly.** `.profile`'s auto-source loop in
 `stow/shell/dot-profile` runs only for shells that read `.profile` (interactive zsh/bash; non-interactive zsh via the
