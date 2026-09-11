@@ -108,12 +108,35 @@ therefore finds nothing and silently applies none of its configuration, in every
 PATH from a parent. Fragments are sourced only after PATH is complete, and the failure this prevents is silent: no error
 is raised, and a shell descended from a working shell behaves correctly regardless, which hides it.
 
+Dialect is load-bearing for the same reason. The entry file is reached by more *invocation shapes* than the shells the
+fragments are written for, so it has to stay within the syntax common to all of them outside regions explicitly guarded
+on a shell's own marker. Order and dialect fail at different scales: a fragment reached too early misconfigures one
+tool, while a construct the reading shell rejects ends the entry file where it stands and costs every export below it.
+The fragments themselves are sourced only by the shells that can parse them, which is why the entry file's dialect
+constraint is stricter than theirs.
+
 ### Bare launcher
 
 A process that spawns a shell without sourcing any startup file, so it inherits only the PATH and environment its parent
 handed it and never runs the *shell config chain*. Cron, launchd and systemd jobs, GUI applications, git hooks, and the
 coding agent's command tool are all bare launchers. A bare launcher that needs a non-default tool on PATH must receive
 it from its own process environment (its unit, plist, or launcher configuration), not from the shell config chain.
+
+Automated and remote callers are not bare launchers by default, and assuming they are is a mistake in the expensive
+direction. A caller that requests a login shell reads the chain however headless it is, which exposes it to everything
+the chain can get wrong rather than exempting it. Whether a caller is a bare launcher is decided by its *invocation
+shape*, not by whether a human is watching.
+
+### Invocation shape
+
+The combination of shell dialect, login versus non-login, and interactive versus non-interactive that decides which
+startup files a shell process reads. Two processes running the same command reach different environments when their
+shapes differ, so the shape is the unit at which shell environment behavior is specified and verified, not the command.
+
+A shape that reads no startup file at all is a *bare launcher*. Verification has to reproduce the caller's exact shape:
+a pass obtained under a neighboring shape carries no information about the one that failed, and a shell descended from a
+correctly configured parent looks correct regardless of what its own startup files do. Shapes are enumerated
+deliberately, because the ones nobody listed are the ones nothing tests.
 
 ## Policies
 
